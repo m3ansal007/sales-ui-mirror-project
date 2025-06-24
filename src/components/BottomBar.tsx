@@ -1,7 +1,69 @@
 
 import { Calendar, ChevronDown, Mic, Send, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { useChat } from "@/contexts/ChatContext";
+import { sendChatMessage } from "@/services/chatService";
+import { useToast } from "@/hooks/use-toast";
 
 export const BottomBar = () => {
+  const [input, setInput] = useState("");
+  const { apiKey, addMessage, setLoading, isLoading, messages } = useChat();
+  const { toast } = useToast();
+
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please configure your OpenAI API key first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const userMessage = input.trim();
+    setInput("");
+    
+    // Add user message to chat
+    addMessage({ role: 'user', content: userMessage });
+    setLoading(true);
+
+    try {
+      // Get conversation history (last 10 messages to avoid token limits)
+      const conversationHistory = messages.slice(-10);
+      
+      const response = await sendChatMessage(userMessage, apiKey, conversationHistory);
+      
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Add assistant response to chat
+      addMessage({ role: 'assistant', content: response.message });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -23,8 +85,16 @@ export const BottomBar = () => {
               type="text"
               placeholder="Ask me anything about your sales..."
               className="flex-1 bg-transparent text-white placeholder-slate-400 outline-none"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={isLoading}
             />
-            <button className="text-slate-400 hover:text-white transition-colors">
+            <button 
+              className="text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+              onClick={handleSendMessage}
+              disabled={isLoading || !input.trim()}
+            >
               <Send className="w-5 h-5" />
             </button>
           </div>
