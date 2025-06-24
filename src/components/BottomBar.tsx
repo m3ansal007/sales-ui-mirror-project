@@ -7,20 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 
 export const BottomBar = () => {
   const [input, setInput] = useState("");
-  const { apiKey, addMessage, setLoading, isLoading, messages } = useChat();
+  const { addMessage, setLoading, isLoading, messages } = useChat();
   const { toast } = useToast();
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
-    
-    if (!apiKey) {
-      toast({
-        title: "API Key Required",
-        description: "Please configure your OpenAI API key first.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const userMessage = input.trim();
     setInput("");
@@ -33,7 +24,7 @@ export const BottomBar = () => {
       // Get conversation history (last 10 messages to avoid token limits)
       const conversationHistory = messages.slice(-10);
       
-      const response = await sendChatMessage(userMessage, apiKey, conversationHistory);
+      const response = await sendChatMessage(userMessage, conversationHistory);
       
       if (response.error) {
         toast({
