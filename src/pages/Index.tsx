@@ -6,6 +6,7 @@ import { DailyInsights } from "@/components/DailyInsights";
 import { BottomBar } from "@/components/BottomBar";
 import { ChatInterface } from "@/components/ChatInterface";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { ColorProvider } from "@/contexts/ColorContext";
 
 const DashboardContent = () => {
   return (
@@ -40,9 +41,11 @@ const DashboardContent = () => {
 
 const Index = () => {
   return (
-    <ChatProvider>
-      <DashboardContent />
-    </ChatProvider>
+    <ColorProvider>
+      <ChatProvider>
+        <DashboardContent />
+      </ChatProvider>
+    </ColorProvider>
   );
 };
 

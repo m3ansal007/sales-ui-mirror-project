@@ -1,13 +1,14 @@
-
 import { Calendar, ChevronDown, Mic, Send, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useChat } from "@/contexts/ChatContext";
 import { sendChatMessage } from "@/services/chatService";
 import { useToast } from "@/hooks/use-toast";
+import { useColors } from "@/contexts/ColorContext";
 
 export const BottomBar = () => {
   const [input, setInput] = useState("");
   const { addMessage, setLoading, isLoading, messages } = useChat();
+  const { updateColors } = useColors();
   const { toast } = useToast();
 
   const handleSendMessage = async () => {
@@ -33,6 +34,20 @@ export const BottomBar = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Handle color changes if requested
+      if (response.colorAction) {
+        updateColors({
+          primaryColor: response.colorAction.colors.primary,
+          secondaryColor: response.colorAction.colors.secondary,
+          accentColor: response.colorAction.colors.accent
+        });
+        
+        toast({
+          title: "Colors Updated",
+          description: "The UI colors have been changed as requested!",
+        });
       }
 
       // Add assistant response to chat
@@ -74,7 +89,7 @@ export const BottomBar = () => {
           <div className="bg-slate-800 border border-slate-700 rounded-full px-6 py-3 flex items-center gap-3">
             <input
               type="text"
-              placeholder="Ask me anything about your sales..."
+              placeholder="Ask me anything about your sales or to change UI colors..."
               className="flex-1 bg-transparent text-white placeholder-slate-400 outline-none"
               value={input}
               onChange={(e) => setInput(e.target.value)}

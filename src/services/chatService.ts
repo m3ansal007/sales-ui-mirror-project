@@ -7,6 +7,14 @@ export interface ChatMessage {
 export interface ChatResponse {
   message: string;
   error?: string;
+  colorAction?: {
+    action: 'change_colors';
+    colors: {
+      primary?: string;
+      secondary?: string;
+      accent?: string;
+    };
+  };
 }
 
 export const sendChatMessage = async (
@@ -35,7 +43,8 @@ export const sendChatMessage = async (
     }
 
     return { 
-      message: data.message || 'No response received' 
+      message: data.message || 'No response received',
+      colorAction: data.colorAction
     };
   } catch (error) {
     console.error('Chat Service Error:', error);

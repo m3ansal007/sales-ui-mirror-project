@@ -19,6 +19,40 @@ interface ChatRequest {
   conversationHistory: ChatMessage[];
 }
 
+const parseColorRequest = (message: string) => {
+  const colorKeywords = ['color', 'colors', 'theme', 'change', 'update'];
+  const hasColorKeyword = colorKeywords.some(keyword => 
+    message.toLowerCase().includes(keyword)
+  );
+
+  if (!hasColorKeyword) return null;
+
+  const colorMap: { [key: string]: string } = {
+    'red': 'red', 'blue': 'blue', 'green': 'green', 'purple': 'purple',
+    'yellow': 'yellow', 'orange': 'orange', 'pink': 'pink', 'indigo': 'indigo',
+    'teal': 'teal', 'cyan': 'cyan', 'lime': 'lime', 'emerald': 'emerald',
+    'violet': 'violet', 'fuchsia': 'fuchsia', 'rose': 'rose', 'amber': 'amber'
+  };
+
+  const extractedColors: { [key: string]: string } = {};
+  
+  for (const [colorName, colorValue] of Object.entries(colorMap)) {
+    if (message.toLowerCase().includes(colorName)) {
+      extractedColors.primary = colorValue;
+      break;
+    }
+  }
+
+  if (Object.keys(extractedColors).length > 0) {
+    return {
+      action: 'change_colors',
+      colors: extractedColors
+    };
+  }
+
+  return null;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -34,10 +68,20 @@ serve(async (req) => {
 
     console.log('Processing chat request:', { message, historyLength: conversationHistory.length });
 
+    // Check if this is a color change request
+    const colorRequest = parseColorRequest(message);
+
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: 'You are a helpful AI assistant for a sales management dashboard. Help users with sales insights, data analysis, and management tasks. Be concise and actionable in your responses.'
+        content: `You are a helpful AI assistant for a sales management dashboard. Help users with sales insights, data analysis, and management tasks. Be concise and actionable in your responses.
+
+IMPORTANT: You can change the UI colors when users ask. If someone asks to change colors, acknowledge their request and explain that you're updating the colors. Supported colors include: red, blue, green, purple, yellow, orange, pink, indigo, teal, cyan, lime, emerald, violet, fuchsia, rose, amber.
+
+Examples:
+- "change to blue" or "make it blue" - changes primary color to blue
+- "change colors to red" - changes primary color to red
+- "update the theme to purple" - changes primary color to purple`
       },
       ...conversationHistory,
       {
@@ -71,9 +115,16 @@ serve(async (req) => {
 
     console.log('ChatGPT response received successfully');
 
-    return new Response(JSON.stringify({ 
+    const responseData: any = { 
       message: assistantMessage 
-    }), {
+    };
+
+    // If this was a color change request, include the color action
+    if (colorRequest) {
+      responseData.colorAction = colorRequest;
+    }
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
