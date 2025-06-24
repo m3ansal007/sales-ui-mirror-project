@@ -38,6 +38,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
   const initializeAssistant = async () => {
     try {
       setConnectionStatus('Connecting...');
+      console.log('Initializing voice assistant...');
       
       // Initialize audio context first
       audioContextRef.current = new AudioContext({ sampleRate: 24000 });
@@ -47,30 +48,33 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
       
       audioQueueRef.current = new AudioQueue(audioContextRef.current);
       
-      // Connect to WebSocket with proper URL
-      const supabaseUrl = 'https://uuymgkqkvwixukutvabw.supabase.co';
-      const wsUrl = `${supabaseUrl.replace('https://', 'wss://')}/functions/v1/realtime-assistant`;
+      // Connect to WebSocket with correct URL
+      const wsUrl = 'wss://uuymgkqkvwixukutvabw.supabase.co/functions/v1/realtime-assistant';
+      console.log('Connecting to WebSocket:', wsUrl);
       
-      console.log('Connecting to:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
-        console.log('Connected to voice assistant');
+        console.log('WebSocket connected successfully');
         setIsConnected(true);
-        setConnectionStatus('Connected');
-        
-        toast({
-          title: "Connected",
-          description: "AI voice assistant is ready to chat!",
-        });
+        setConnectionStatus('Connected - Setting up session...');
       };
 
       wsRef.current.onmessage = handleWebSocketMessage;
       
       wsRef.current.onclose = (event) => {
-        console.log('Disconnected from voice assistant', event);
+        console.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         setConnectionStatus('Disconnected');
+        
+        // Show user-friendly error message
+        if (event.code !== 1000) {
+          toast({
+            title: "Connection Lost",
+            description: "Voice assistant disconnected. Please try again.",
+            variant: "destructive",
+          });
+        }
       };
 
       wsRef.current.onerror = (error) => {
@@ -80,17 +84,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         
         toast({
           title: "Connection Error",
-          description: "Failed to connect to voice assistant. Please try again.",
+          description: "Unable to connect to voice assistant. Please check your internet connection and try again.",
           variant: "destructive",
         });
       };
-
-      // Set up audio recording after WebSocket is established
-      setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          setupAudioRecording();
-        }
-      }, 1000);
       
     } catch (error) {
       console.error('Failed to initialize voice assistant:', error);
@@ -98,7 +95,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
       
       toast({
         title: "Initialization Error",
-        description: "Failed to initialize voice assistant.",
+        description: "Failed to initialize voice assistant. Please try again.",
         variant: "destructive",
       });
     }
@@ -108,8 +105,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
     try {
       console.log('Setting up audio recording...');
       
-      // Check if getUserMedia is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('getUserMedia is not supported in this browser');
       }
 
@@ -124,6 +120,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
       });
 
       console.log('Audio stream obtained successfully');
+      setConnectionStatus('Connected - Ready to chat!');
 
       recorderRef.current = new MediaRecorder(streamRef.current, {
         mimeType: 'audio/webm;codecs=opus'
@@ -131,7 +128,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
 
       recorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-          console.log('Sending audio data to server');
+          console.log('Sending audio data, size:', event.data.size);
           const reader = new FileReader();
           reader.onloadend = () => {
             const base64Audio = (reader.result as string).split(',')[1];
@@ -145,8 +142,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
       };
 
       toast({
-        title: "Microphone Ready",
-        description: "You can now talk to the AI assistant!",
+        title: "Ready to Chat",
+        description: "Voice assistant is ready! Start speaking to begin conversation.",
       });
 
     } catch (error) {
@@ -155,11 +152,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
       let errorMessage = 'Failed to access microphone.';
       if (error instanceof Error) {
         if (error.name === 'NotFoundError') {
-          errorMessage = 'No microphone found. Please check your device has a microphone.';
+          errorMessage = 'No microphone found. Please connect a microphone and try again.';
         } else if (error.name === 'NotAllowedError') {
-          errorMessage = 'Microphone access denied. Please allow microphone permissions.';
+          errorMessage = 'Microphone access denied. Please allow microphone permissions and refresh the page.';
         } else if (error.name === 'NotSupportedError') {
-          errorMessage = 'Your browser does not support audio recording.';
+          errorMessage = 'Your browser does not support audio recording. Please try Chrome or Firefox.';
         }
       }
       
@@ -168,22 +165,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         description: errorMessage,
         variant: "destructive",
       });
+      
+      setConnectionStatus('Microphone setup failed');
     }
   };
 
   const handleWebSocketMessage = async (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
-      console.log('Received message:', data.type);
+      console.log('Received WebSocket message:', data.type);
 
       switch (data.type) {
         case 'session.created':
           console.log('Session created, configuring...');
+          setConnectionStatus('Session created - Configuring...');
           wsRef.current?.send(JSON.stringify({
             type: 'session.update',
             session: {
               modalities: ['text', 'audio'],
-              instructions: 'You are a helpful AI assistant. Be friendly, concise, and helpful. Speak naturally and conversationally.',
+              instructions: 'You are a helpful AI assistant. Be friendly, concise, and conversational. Answer questions clearly and helpfully.',
               voice: 'alloy',
               input_audio_format: 'pcm16',
               output_audio_format: 'pcm16',
@@ -203,10 +203,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
           break;
 
         case 'session.updated':
-          console.log('Session updated, starting conversation...');
-          wsRef.current?.send(JSON.stringify({
-            type: 'response.create'
-          }));
+          console.log('Session updated, setting up audio...');
+          setConnectionStatus('Session configured - Setting up audio...');
+          await setupAudioRecording();
           break;
 
         case 'response.audio.delta':
@@ -226,6 +225,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
           break;
 
         case 'response.audio.done':
+          console.log('Assistant finished speaking');
           setIsAssistantSpeaking(false);
           break;
 
@@ -246,6 +246,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
         case 'conversation.item.input_audio_transcription.completed':
           console.log('Transcription completed:', data.transcript);
           setTranscript(data.transcript || '');
+          break;
+
+        case 'error':
+          console.error('Received error from server:', data);
+          toast({
+            title: "Assistant Error",
+            description: data.error?.message || "An error occurred with the voice assistant.",
+            variant: "destructive",
+          });
           break;
 
         default:
@@ -338,11 +347,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
             <div className="text-xs text-slate-400">
               {!isConnected ? 'Establishing connection...' :
                isAssistantSpeaking ? 'AI is speaking...' :
-               isRecording ? 'Listening to you...' : 'Ready to chat - hold to speak'}
+               isRecording ? 'Listening to you...' : 'Ready to chat - start speaking!'}
             </div>
           </div>
 
-          {isConnected && (
+          {isConnected && streamRef.current && (
             <div className="space-y-2">
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700"
@@ -350,7 +359,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                 onMouseUp={stopRecording}
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
-                disabled={isAssistantSpeaking || !streamRef.current}
+                disabled={isAssistantSpeaking}
               >
                 {isRecording ? 'Release to stop talking' : 'Hold to speak'}
               </Button>
@@ -371,14 +380,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
             </div>
           )}
 
-          {!isConnected && (
+          {(!isConnected || !streamRef.current) && (
             <div className="text-center text-sm text-slate-400">
-              <div>Make sure you have:</div>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Allowed microphone permissions</li>
-                <li>A working internet connection</li>
-                <li>OpenAI API key configured</li>
+              <div>Having trouble connecting?</div>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-left">
+                <li>Allow microphone permissions</li>
+                <li>Check your internet connection</li>
+                <li>Try refreshing the page</li>
+                <li>Use Chrome or Firefox for best results</li>
               </ul>
+              
+              {!isConnected && (
+                <Button 
+                  onClick={initializeAssistant}
+                  className="mt-3 bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  Retry Connection
+                </Button>
+              )}
             </div>
           )}
         </div>
