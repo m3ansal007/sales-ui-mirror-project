@@ -2,6 +2,7 @@
 import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -10,12 +11,19 @@ export const Sidebar = () => {
     communication: false,
     leadStages: false
   });
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
@@ -40,12 +48,18 @@ export const Sidebar = () => {
 
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-2">
-          <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg p-3 border border-purple-500/30">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-purple-400" />
-              {!isCollapsed && <span className="text-white font-medium">Dashboard</span>}
-            </div>
-          </div>
+          <button
+            onClick={() => navigate("/")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/") 
+                ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 text-white" 
+                : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
+            <BarChart3 className="w-4 h-4" />
+            {!isCollapsed && <span>Dashboard</span>}
+          </button>
 
           {/* Leads Section */}
           <div>
@@ -63,8 +77,19 @@ export const Sidebar = () => {
             </button>
             {expandedSections.leads && !isCollapsed && (
               <div className="ml-6 space-y-1 mt-2">
-                <button className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded">All Leads</button>
-                <button className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
+                <button 
+                  onClick={() => navigate("/leads")}
+                  className={cn(
+                    "w-full text-left p-2 text-sm rounded transition-colors",
+                    isActive("/leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  )}
+                >
+                  All Leads
+                </button>
+                <button 
+                  onClick={() => navigate("/leads")}
+                  className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2"
+                >
                   <UserPlus className="w-3 h-3" />
                   Add New Lead
                 </button>
@@ -89,7 +114,13 @@ export const Sidebar = () => {
           </div>
 
           {/* Tasks & Follow-Ups */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/tasks")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/tasks") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <GitPullRequest className="w-4 h-4" />
             {!isCollapsed && <span>Tasks & Follow-Ups</span>}
           </button>
@@ -110,15 +141,27 @@ export const Sidebar = () => {
             </button>
             {expandedSections.communication && !isCollapsed && (
               <div className="ml-6 space-y-1 mt-2">
-                <button className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
+                <button 
+                  onClick={() => navigate("/communication")}
+                  className={cn(
+                    "w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors",
+                    isActive("/communication") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  )}
+                >
                   <Phone className="w-3 h-3" />
                   Calls
                 </button>
-                <button className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
+                <button 
+                  onClick={() => navigate("/communication")}
+                  className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2"
+                >
                   <Mail className="w-3 h-3" />
                   Emails
                 </button>
-                <button className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
+                <button 
+                  onClick={() => navigate("/communication")}
+                  className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2"
+                >
                   <MessageCircle className="w-3 h-3" />
                   WhatsApp
                 </button>
@@ -127,31 +170,61 @@ export const Sidebar = () => {
           </div>
 
           {/* Sales Pipeline */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/pipeline")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/pipeline") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <PieChart className="w-4 h-4" />
             {!isCollapsed && <span>Sales Pipeline</span>}
           </button>
 
           {/* Calendar & Appointments */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/calendar")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/calendar") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <Calendar className="w-4 h-4" />
             {!isCollapsed && <span>Calendar & Appointments</span>}
           </button>
 
           {/* Reports & Analytics */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/reports")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/reports") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <BarChart3 className="w-4 h-4" />
             {!isCollapsed && <span>Reports & Analytics</span>}
           </button>
 
           {/* Team & Roles */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/team")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/team") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <Briefcase className="w-4 h-4" />
             {!isCollapsed && <span>Team & Roles</span>}
           </button>
 
           {/* Settings */}
-          <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300">
+          <button 
+            onClick={() => navigate("/settings")}
+            className={cn(
+              "w-full flex items-center gap-2 p-3 rounded-lg transition-colors",
+              isActive("/settings") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300"
+            )}
+          >
             <Settings className="w-4 h-4" />
             {!isCollapsed && <span>Settings</span>}
           </button>
