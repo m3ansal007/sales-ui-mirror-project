@@ -1,4 +1,5 @@
-import { Calendar, ChevronDown, Mic, Send, Sparkles, Plus, Search, MicOff } from "lucide-react";
+
+import { Calendar, ChevronDown, Mic, Send, Plus, Search, MicOff } from "lucide-react";
 import { useState, useRef } from "react";
 import { useChat } from "@/contexts/ChatContext";
 import { sendChatMessage } from "@/services/chatService";
@@ -6,13 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useColors } from "@/contexts/ColorContext";
 import { VoiceRecorder } from "@/utils/voiceRecorder";
 import { convertSpeechToText } from "@/services/speechService";
-import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 export const BottomBar = () => {
   const [input, setInput] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
-  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const voiceRecorderRef = useRef<VoiceRecorder | null>(null);
   const { addMessage, setLoading, isLoading, messages } = useChat();
   const { updateColors } = useColors();
@@ -150,75 +149,61 @@ export const BottomBar = () => {
   ];
 
   return (
-    <>
-      <div className="fixed bottom-4 left-4 right-4 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {quickActions.map((action, index) => (
-              <button 
-                key={index}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-white transition-colors"
-              >
-                <action.icon className="w-4 h-4" />
-                <span>{action.label}</span>
-              </button>
-            ))}
-            
+    <div className="fixed bottom-4 left-4 right-4 z-50">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {quickActions.map((action, index) => (
             <button 
-              className={`rounded-full p-3 text-white transition-colors ${
-                isRecording 
-                  ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-                  : isProcessingVoice
-                  ? 'bg-yellow-600 hover:bg-yellow-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-              onClick={handleVoiceInput}
-              disabled={isProcessingVoice || isLoading}
+              key={index}
+              className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-white transition-colors"
             >
-              {isProcessingVoice ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : isRecording ? (
-                <MicOff className="w-5 h-5" />
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
+              <action.icon className="w-4 h-4" />
+              <span>{action.label}</span>
             </button>
-          </div>
-
-          <div className="flex-1 max-w-2xl mx-4">
-            <div className="bg-slate-800 border border-slate-700 rounded-full px-6 py-3 flex items-center gap-3">
-              <input
-                type="text"
-                placeholder={isRecording ? "Recording..." : isProcessingVoice ? "Processing speech..." : "Ask AI: Add lead, find follow-ups, get summary..."}
-                className="flex-1 bg-transparent text-white placeholder-slate-400 outline-none"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading || isRecording || isProcessingVoice}
-              />
-              <button 
-                className="text-slate-400 hover:text-white transition-colors disabled:opacity-50"
-                onClick={handleSendMessage}
-                disabled={isLoading || !input.trim() || isRecording || isProcessingVoice}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
+          ))}
+          
           <button 
-            className="bg-blue-600 hover:bg-blue-700 rounded-full p-3 text-white transition-colors"
-            onClick={() => setIsVoiceAssistantOpen(true)}
+            className={`rounded-full p-3 text-white transition-colors ${
+              isRecording 
+                ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
+                : isProcessingVoice
+                ? 'bg-yellow-600 hover:bg-yellow-700'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+            onClick={handleVoiceInput}
+            disabled={isProcessingVoice || isLoading}
           >
-            <Sparkles className="w-5 h-5" />
+            {isProcessingVoice ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : isRecording ? (
+              <MicOff className="w-5 h-5" />
+            ) : (
+              <Mic className="w-5 h-5" />
+            )}
           </button>
         </div>
-      </div>
 
-      <VoiceAssistant 
-        isOpen={isVoiceAssistantOpen} 
-        onClose={() => setIsVoiceAssistantOpen(false)} 
-      />
-    </>
+        <div className="flex-1 max-w-2xl mx-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-full px-6 py-3 flex items-center gap-3">
+            <input
+              type="text"
+              placeholder={isRecording ? "Recording..." : isProcessingVoice ? "Processing speech..." : "Ask AI: Add lead, find follow-ups, get summary..."}
+              className="flex-1 bg-transparent text-white placeholder-slate-400 outline-none"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={isLoading || isRecording || isProcessingVoice}
+            />
+            <button 
+              className="text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+              onClick={handleSendMessage}
+              disabled={isLoading || !input.trim() || isRecording || isProcessingVoice}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
