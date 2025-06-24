@@ -2,6 +2,8 @@ import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, Me
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
+import { AuthButton } from "@/components/AuthButton";
+
 export const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -11,16 +13,20 @@ export const Sidebar = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
+  
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
+  
   const isActive = (path: string) => {
     return location.pathname === path;
   };
-  return <div className={cn("bg-slate-900 border-r border-slate-800 h-screen transition-all duration-300 flex flex-col overflow-y-auto", isCollapsed ? "w-16" : "w-64")}>
+
+  return (
+    <div className={cn("bg-slate-900 border-r border-slate-800 h-screen transition-all duration-300 flex flex-col overflow-y-auto", isCollapsed ? "w-16" : "w-64")}>
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -133,5 +139,13 @@ export const Sidebar = () => {
           </button>
         </div>
       </div>
-    </div>;
+
+      {/* Add auth button at the bottom when not collapsed */}
+      {!isCollapsed && (
+        <div className="border-t border-slate-800">
+          <AuthButton />
+        </div>
+      )}
+    </div>
+  );
 };
