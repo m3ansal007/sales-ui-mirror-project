@@ -17,7 +17,6 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     company: '',
     source: 'Website',
     status: 'New',
-    assigned_to: '',
     notes: '',
     value: ''
   });
@@ -35,11 +34,12 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
         company: formData.company || undefined,
         source: formData.source || undefined,
         status: formData.status,
-        assigned_to: formData.assigned_to || undefined,
+        assigned_to: undefined, // Remove this field for now
         notes: formData.notes || undefined,
         value: formData.value ? parseFloat(formData.value) : undefined
       };
       
+      console.log('Submitting lead data:', leadData);
       const success = await onSubmit(leadData);
       if (success) {
         onClose();
@@ -50,7 +50,6 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           company: '',
           source: 'Website',
           status: 'New',
-          assigned_to: '',
           notes: '',
           value: ''
         });
@@ -89,7 +88,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <User className="w-4 h-4 inline mr-2" />
-              Name
+              Name *
             </label>
             <input
               type="text"

@@ -8,8 +8,8 @@ export const LeadMetricsCards = () => {
   const metrics = [
     {
       title: "Total Leads",
-      value: "247",
-      change: "+12 this week",
+      value: "0",
+      change: "Start adding leads",
       icon: Users,
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-500/10",
@@ -18,8 +18,8 @@ export const LeadMetricsCards = () => {
     },
     {
       title: "Hot Leads",
-      value: "18",
-      change: "+5 this week",
+      value: "0",
+      change: "No hot leads yet",
       icon: Flame,
       color: "from-red-500 to-orange-600",
       bgColor: "bg-red-500/10",
@@ -28,8 +28,8 @@ export const LeadMetricsCards = () => {
     },
     {
       title: "Follow-Ups Today",
-      value: "7",
-      change: "2 overdue",
+      value: "0",
+      change: "No follow-ups scheduled",
       icon: Clock,
       color: "from-yellow-500 to-orange-600",
       bgColor: "bg-yellow-500/10",
@@ -38,8 +38,8 @@ export const LeadMetricsCards = () => {
     },
     {
       title: "Converted Leads",
-      value: "89",
-      change: "+15 this month",
+      value: "0",
+      change: "No conversions yet",
       icon: TrendingUp,
       color: "from-green-500 to-green-600",
       bgColor: "bg-green-500/10",
@@ -48,8 +48,8 @@ export const LeadMetricsCards = () => {
     },
     {
       title: "Upcoming Meetings",
-      value: "12",
-      change: "3 today",
+      value: "0",
+      change: "No meetings scheduled",
       icon: Calendar,
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-500/10",
