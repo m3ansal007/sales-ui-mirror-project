@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,17 +48,35 @@ export const useLeads = () => {
   };
 
   const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
-    if (!user) return false;
+    if (!user) {
+      console.error('No user found when trying to create lead');
+      return false;
+    }
 
     try {
+      console.log('Creating lead with data:', leadData);
+      console.log('User ID:', user.id);
+      
+      const dataToInsert = { 
+        ...leadData, 
+        user_id: user.id,
+        status: leadData.status || 'New'
+      };
+      
+      console.log('Data being inserted:', dataToInsert);
+
       const { data, error } = await supabase
         .from('leads')
-        .insert([{ ...leadData, user_id: user.id }])
+        .insert([dataToInsert])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       
+      console.log('Lead created successfully:', data);
       setLeads(prev => [data, ...prev]);
       toast({
         title: "Success",
