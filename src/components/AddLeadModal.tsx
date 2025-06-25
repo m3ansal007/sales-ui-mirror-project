@@ -19,7 +19,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     status: 'New',
     assigned_to: '',
     notes: '',
-    value: 0
+    value: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,9 +29,15 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     
     try {
       const leadData = {
-        ...formData,
-        value: formData.value || undefined,
-        assigned_to: formData.assigned_to || undefined
+        name: formData.name,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        company: formData.company || undefined,
+        source: formData.source || undefined,
+        status: formData.status,
+        assigned_to: formData.assigned_to || undefined,
+        notes: formData.notes || undefined,
+        value: formData.value ? parseFloat(formData.value) : undefined
       };
       
       const success = await onSubmit(leadData);
@@ -46,7 +52,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           status: 'New',
           assigned_to: '',
           notes: '',
-          value: 0
+          value: ''
         });
       }
     } catch (error) {
@@ -60,7 +66,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'value' ? parseFloat(value) || 0 : value
+      [name]: value
     }));
   };
 
