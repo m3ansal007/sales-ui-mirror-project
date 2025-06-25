@@ -1,43 +1,66 @@
 
 import { X, User, Mail, Phone, MapPin, Users, FileText } from "lucide-react";
 import { useState } from "react";
+import { Lead } from "@/hooks/useLeads";
 
 interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSubmit: (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
 }
 
-export const AddLeadModal = ({ isOpen, onClose }: AddLeadModalProps) => {
+export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    company: '',
     source: 'Website',
     status: 'New',
-    assignedTo: 'Unassigned',
-    notes: ''
+    assigned_to: '',
+    notes: '',
+    value: 0
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('New lead data:', formData);
-    onClose();
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      source: 'Website',
-      status: 'New',
-      assignedTo: 'Unassigned',
-      notes: ''
-    });
+    setIsSubmitting(true);
+    
+    try {
+      const leadData = {
+        ...formData,
+        value: formData.value || undefined,
+        assigned_to: formData.assigned_to || undefined
+      };
+      
+      const success = await onSubmit(leadData);
+      if (success) {
+        onClose();
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          source: 'Website',
+          status: 'New',
+          assigned_to: '',
+          notes: '',
+          value: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting lead:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: name === 'value' ? parseFloat(value) || 0 : value
     }));
   };
 
@@ -85,7 +108,6 @@ export const AddLeadModal = ({ isOpen, onClose }: AddLeadModalProps) => {
               onChange={handleInputChange}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter email address"
-              required
             />
           </div>
 
@@ -101,6 +123,20 @@ export const AddLeadModal = ({ isOpen, onClose }: AddLeadModalProps) => {
               onChange={handleInputChange}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter phone number"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Company
+            </label>
+            <input
+              type="text"
+              name="company"
+              value={formData.company}
+              onChange={handleInputChange}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter company name"
             />
           </div>
 
@@ -144,21 +180,18 @@ export const AddLeadModal = ({ isOpen, onClose }: AddLeadModalProps) => {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              <Users className="w-4 h-4 inline mr-2" />
-              Assigned To
+              Lead Value ($)
             </label>
-            <select
-              name="assignedTo"
-              value={formData.assignedTo}
+            <input
+              type="number"
+              name="value"
+              value={formData.value}
               onChange={handleInputChange}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Unassigned">Unassigned</option>
-              <option value="Sarah Johnson">Sarah Johnson</option>
-              <option value="Mike Davis">Mike Davis</option>
-              <option value="Lisa Brown">Lisa Brown</option>
-              <option value="John Smith">John Smith</option>
-            </select>
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter lead value"
+              min="0"
+              step="0.01"
+            />
           </div>
 
           <div>
@@ -181,14 +214,16 @@ export const AddLeadModal = ({ isOpen, onClose }: AddLeadModalProps) => {
               type="button"
               onClick={onClose}
               className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded-lg transition-colors"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              disabled={isSubmitting}
             >
-              Add Lead
+              {isSubmitting ? 'Adding...' : 'Add Lead'}
             </button>
           </div>
         </form>
