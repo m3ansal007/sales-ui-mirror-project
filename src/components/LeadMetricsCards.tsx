@@ -1,7 +1,10 @@
 
 import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const LeadMetricsCards = () => {
+  const navigate = useNavigate();
+
   const metrics = [
     {
       title: "Total Leads",
@@ -10,7 +13,8 @@ export const LeadMetricsCards = () => {
       icon: Users,
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-500/10",
-      borderColor: "border-blue-500/30"
+      borderColor: "border-blue-500/30",
+      onClick: () => navigate("/leads")
     },
     {
       title: "Hot Leads",
@@ -19,7 +23,8 @@ export const LeadMetricsCards = () => {
       icon: Flame,
       color: "from-red-500 to-orange-600",
       bgColor: "bg-red-500/10",
-      borderColor: "border-red-500/30"
+      borderColor: "border-red-500/30",
+      onClick: () => navigate("/leads")
     },
     {
       title: "Follow-Ups Today",
@@ -28,7 +33,8 @@ export const LeadMetricsCards = () => {
       icon: Clock,
       color: "from-yellow-500 to-orange-600",
       bgColor: "bg-yellow-500/10",
-      borderColor: "border-yellow-500/30"
+      borderColor: "border-yellow-500/30",
+      onClick: () => navigate("/tasks")
     },
     {
       title: "Converted Leads",
@@ -37,7 +43,8 @@ export const LeadMetricsCards = () => {
       icon: TrendingUp,
       color: "from-green-500 to-green-600",
       bgColor: "bg-green-500/10",
-      borderColor: "border-green-500/30"
+      borderColor: "border-green-500/30",
+      onClick: () => navigate("/pipeline")
     },
     {
       title: "Upcoming Meetings",
@@ -46,7 +53,8 @@ export const LeadMetricsCards = () => {
       icon: Calendar,
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-500/10",
-      borderColor: "border-purple-500/30"
+      borderColor: "border-purple-500/30",
+      onClick: () => navigate("/calendar")
     }
   ];
 
@@ -55,6 +63,7 @@ export const LeadMetricsCards = () => {
       {metrics.map((metric, index) => (
         <div
           key={index}
+          onClick={metric.onClick}
           className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-200 hover:scale-105 cursor-pointer group`}
         >
           <div className="flex items-center justify-between mb-4">
