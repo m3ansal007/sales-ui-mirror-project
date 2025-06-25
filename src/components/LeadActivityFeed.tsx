@@ -1,45 +1,64 @@
 
 import { ChevronRight, Plus, User, Phone, Mail, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddLeadModal } from "@/components/AddLeadModal";
+import { useLeads } from "@/hooks/useLeads";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const LeadActivityFeed = () => {
   const [showAddLead, setShowAddLead] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const { createLead } = useLeads();
+  const { user } = useAuth();
 
-  const activities = [
-    {
-      type: "new_lead",
-      message: "New Lead added by Sarah",
-      lead: "John Smith - LinkedIn",
-      time: "2 mins ago",
-      icon: User,
-      color: "text-blue-400"
-    },
-    {
-      type: "follow_up",
-      message: "Follow-up completed for",
-      lead: "Emma Johnson",
-      time: "15 mins ago",
-      icon: Phone,
-      color: "text-green-400"
-    },
-    {
-      type: "status_change",
-      message: "Lead status changed:",
-      lead: "Mike Davis ➝ Contacted",
-      time: "1 hour ago",
-      icon: MessageCircle,
-      color: "text-yellow-400"
-    },
-    {
-      type: "email_sent",
-      message: "Email sent to",
-      lead: "Lisa Brown",
-      time: "2 hours ago",
-      icon: Mail,
-      color: "text-purple-400"
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('activities')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setActivities(data || []);
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      }
+    };
+
+    fetchActivities();
+  }, [user]);
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'created': return User;
+      case 'updated': return MessageCircle;
+      default: return User;
     }
-  ];
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'created': return 'text-blue-400';
+      case 'updated': return 'text-yellow-400';
+      default: return 'text-slate-400';
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} mins ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
+    return `${Math.floor(diffInMinutes / 1440)} days ago`;
+  };
 
   return (
     <>
@@ -66,25 +85,35 @@ export const LeadActivityFeed = () => {
         </div>
 
         <div className="space-y-4">
-          {activities.map((activity, index) => (
-            <div key={index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
-              <div className={`p-1 rounded ${activity.color}`}>
-                <activity.icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-slate-300 text-sm">
-                  {activity.message} <span className="text-white font-medium">{activity.lead}</span>
-                </p>
-                <p className="text-slate-500 text-xs mt-1">{activity.time}</p>
-              </div>
+          {activities.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              No recent activity. Start by adding a new lead!
             </div>
-          ))}
+          ) : (
+            activities.map((activity, index) => {
+              const ActivityIcon = getActivityIcon(activity.type);
+              return (
+                <div key={index} className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
+                  <div className={`p-1 rounded ${getActivityColor(activity.type)}`}>
+                    <ActivityIcon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-slate-300 text-sm">
+                      {activity.title}: <span className="text-white font-medium">{activity.description}</span>
+                    </p>
+                    <p className="text-slate-500 text-xs mt-1">{formatTimeAgo(activity.created_at)}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
       <AddLeadModal 
         isOpen={showAddLead} 
         onClose={() => setShowAddLead(false)} 
+        onSubmit={createLead}
       />
     </>
   );

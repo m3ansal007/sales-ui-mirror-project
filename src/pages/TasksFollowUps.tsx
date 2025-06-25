@@ -1,14 +1,63 @@
 
-import { Clock, Plus, Calendar, User } from "lucide-react";
-import { Sidebar } from "@/components/Sidebar";
+import React, { useState } from 'react';
+import { Clock, Plus, Calendar, User, CheckCircle } from 'lucide-react';
+import { Sidebar } from '@/components/Sidebar';
+import { Button } from '@/components/ui/button';
+import { AddTaskModal } from '@/components/AddTaskModal';
+import { useTasks } from '@/hooks/useTasks';
+import { useLeads } from '@/hooks/useLeads';
 
 const TasksFollowUps = () => {
-  const tasks = [
-    { id: 1, title: "Follow up with John Smith", lead: "John Smith", dueDate: "2024-01-15", priority: "High", type: "Follow-up" },
-    { id: 2, title: "Send proposal to Emma Johnson", lead: "Emma Johnson", dueDate: "2024-01-16", priority: "Medium", type: "Task" },
-    { id: 3, title: "Schedule demo for Mike Davis", lead: "Mike Davis", dueDate: "2024-01-17", priority: "High", type: "Meeting" },
-    { id: 4, title: "Send contract to Lisa Brown", lead: "Lisa Brown", dueDate: "2024-01-18", priority: "Low", type: "Task" },
-  ];
+  const { tasks, loading, createTask, completeTask } = useTasks();
+  const { leads } = useLeads();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [filter, setFilter] = useState('All Tasks');
+
+  const getLeadName = (leadId: string) => {
+    const lead = leads.find(l => l.id === leadId);
+    return lead ? lead.name : 'Unknown Lead';
+  };
+
+  const isOverdue = (dueDate: string) => {
+    return new Date(dueDate) < new Date() && new Date().toDateString() !== new Date(dueDate).toDateString();
+  };
+
+  const isDueToday = (dueDate: string) => {
+    return new Date().toDateString() === new Date(dueDate).toDateString();
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    switch (filter) {
+      case 'Due Today':
+        return task.due_date && isDueToday(task.due_date) && task.status !== 'Completed';
+      case 'Overdue':
+        return task.due_date && isOverdue(task.due_date) && task.status !== 'Completed';
+      case 'Completed':
+        return task.status === 'Completed';
+      default:
+        return true;
+    }
+  });
+
+  const handleCompleteTask = async (taskId: string) => {
+    await completeTask(taskId);
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High': return 'bg-red-500/20 text-red-400';
+      case 'Medium': return 'bg-yellow-500/20 text-yellow-400';
+      case 'Low': return 'bg-green-500/20 text-green-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
+  const getTaskStatusColor = (task: any) => {
+    if (task.status === 'Completed') return 'bg-green-500/20 text-green-400';
+    if (task.due_date && isOverdue(task.due_date)) return 'bg-red-500/20 text-red-400';
+    if (task.due_date && isDueToday(task.due_date)) return 'bg-orange-500/20 text-orange-400';
+    return 'bg-blue-500/20 text-blue-400';
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -23,53 +72,95 @@ const TasksFollowUps = () => {
 
           <div className="flex justify-between items-center mb-6">
             <div className="flex gap-4">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg">All Tasks</button>
-              <button className="bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700">Due Today</button>
-              <button className="bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-700">Overdue</button>
+              {['All Tasks', 'Due Today', 'Overdue', 'Completed'].map((filterType) => (
+                <Button
+                  key={filterType}
+                  variant={filter === filterType ? "default" : "outline"}
+                  onClick={() => setFilter(filterType)}
+                  className={filter === filterType ? "bg-blue-600" : ""}
+                >
+                  {filterType}
+                </Button>
+              ))}
             </div>
-            <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-              <Plus className="w-4 h-4" />
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
               Add Task
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {tasks.map((task) => (
-              <div key={task.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-white font-medium mb-2">{task.title}</h3>
-                    <div className="flex items-center gap-4 text-sm text-slate-400">
-                      <div className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {task.lead}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {task.dueDate}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {task.type}
+            {loading ? (
+              <div className="text-center py-8 text-slate-400">Loading tasks...</div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                No tasks found for this filter.
+              </div>
+            ) : (
+              filteredTasks.map((task) => (
+                <div key={task.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800/50 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-white font-medium mb-2">{task.title}</h3>
+                      {task.description && (
+                        <p className="text-slate-400 text-sm mb-3">{task.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        {task.lead_id && (
+                          <div className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {getLeadName(task.lead_id)}
+                          </div>
+                        )}
+                        {task.due_date && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(task.due_date).toLocaleDateString()}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {task.type}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      task.priority === 'High' ? 'bg-red-500/20 text-red-400' :
-                      task.priority === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-green-500/20 text-green-400'
-                    }`}>
-                      {task.priority}
-                    </span>
-                    <button className="text-blue-400 hover:text-blue-300 text-sm">Complete</button>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                        {task.priority}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskStatusColor(task)}`}>
+                        {task.status === 'Completed' ? 'Completed' :
+                         task.due_date && isOverdue(task.due_date) ? 'Overdue' :
+                         task.due_date && isDueToday(task.due_date) ? 'Due Today' : 'Pending'}
+                      </span>
+                      {task.status !== 'Completed' && (
+                        <Button
+                          onClick={() => handleCompleteTask(task.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-green-400 hover:text-green-300"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Complete
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
+
+      <AddTaskModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={createTask}
+      />
     </div>
   );
 };
