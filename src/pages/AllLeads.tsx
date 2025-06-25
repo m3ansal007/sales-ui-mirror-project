@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -7,6 +7,7 @@ import { Plus, Edit, Trash2, Mail, Phone } from 'lucide-react';
 import { AddLeadModal } from '@/components/AddLeadModal';
 import { EditLeadModal } from '@/components/EditLeadModal';
 import { useLeads } from '@/hooks/useLeads';
+import { useSearchParams } from 'react-router-dom';
 
 const AllLeads = () => {
   const { leads, loading, createLead, updateLead, deleteLead } = useLeads();
@@ -14,6 +15,15 @@ const AllLeads = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [searchParams] = useSearchParams();
+
+  // Handle URL parameters for status filtering
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam && ['New', 'Contacted', 'Follow-Up', 'Converted', 'Lost'].includes(statusParam)) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
 
   const filteredLeads = statusFilter === 'All' 
     ? leads 

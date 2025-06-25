@@ -1,3 +1,4 @@
+
 import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,19 @@ export const Sidebar = () => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  const handleLeadStageClick = (status: string) => {
+    // Navigate to leads page with status filter
+    navigate(`/leads?status=${status}`);
+  };
+
+  const leadStages = [
+    { label: 'New', status: 'New' },
+    { label: 'Contacted', status: 'Contacted' },
+    { label: 'Follow-Up', status: 'Follow-Up' },
+    { label: 'Converted', status: 'Converted' },
+    { label: 'Lost', status: 'Lost' }
+  ];
 
   return (
     <div className={cn("bg-slate-900 border-r border-slate-800 h-screen transition-all duration-300 flex flex-col overflow-y-auto", isCollapsed ? "w-16" : "w-64")}>
@@ -68,11 +82,15 @@ export const Sidebar = () => {
                   <ChevronDown className={cn("w-3 h-3 transition-transform", expandedSections.leadStages && "rotate-180")} />
                 </button>
                 {expandedSections.leadStages && <div className="ml-4 space-y-1">
-                    <div className="p-2 text-xs text-slate-500">• New</div>
-                    <div className="p-2 text-xs text-slate-500">• Contacted</div>
-                    <div className="p-2 text-xs text-slate-500">• Follow-Up</div>
-                    <div className="p-2 text-xs text-slate-500">• Converted</div>
-                    <div className="p-2 text-xs text-slate-500">• Lost</div>
+                    {leadStages.map((stage) => (
+                      <button
+                        key={stage.status}
+                        onClick={() => handleLeadStageClick(stage.status)}
+                        className="w-full text-left p-2 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded transition-colors"
+                      >
+                        • {stage.label}
+                      </button>
+                    ))}
                   </div>}
               </div>}
           </div>
