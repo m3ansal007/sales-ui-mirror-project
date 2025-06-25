@@ -59,15 +59,24 @@ export const useLeads = () => {
     }
 
     try {
-      const dataToInsert = { 
-        ...leadData, 
-        user_id: user.id,
-        status: leadData.status || 'New'
+      // Clean the data before insertion
+      const cleanData = {
+        name: leadData.name,
+        email: leadData.email || null,
+        phone: leadData.phone || null,
+        company: leadData.company || null,
+        source: leadData.source || null,
+        status: leadData.status || 'New',
+        notes: leadData.notes || null,
+        value: leadData.value || null,
+        user_id: user.id
       };
+
+      console.log('Inserting lead data:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')
-        .insert([dataToInsert])
+        .insert(cleanData)
         .select()
         .single();
 
@@ -86,7 +95,7 @@ export const useLeads = () => {
       console.error('Error creating lead:', error);
       toast({
         title: "Error",
-        description: "Failed to create lead",
+        description: `Failed to create lead: ${error.message}`,
         variant: "destructive",
       });
       return false;

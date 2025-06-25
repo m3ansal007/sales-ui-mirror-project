@@ -24,18 +24,22 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
       const leadData = {
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        company: formData.company || undefined,
+        name: formData.name.trim(),
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        company: formData.company.trim() || undefined,
         source: formData.source || undefined,
         status: formData.status,
-        assigned_to: undefined, // Remove this field for now
-        notes: formData.notes || undefined,
+        notes: formData.notes.trim() || undefined,
         value: formData.value ? parseFloat(formData.value) : undefined
       };
       
@@ -226,7 +230,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
             <button
               type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !formData.name.trim()}
             >
               {isSubmitting ? 'Adding...' : 'Add Lead'}
             </button>
