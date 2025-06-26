@@ -1,4 +1,3 @@
-
 import { Calendar as CalendarIcon, Plus, Clock } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
@@ -30,6 +29,11 @@ const Calendar = () => {
     const diffMs = end.getTime() - start.getTime();
     const diffMins = Math.round(diffMs / (1000 * 60));
     return `${diffMins} min`;
+  };
+
+  // Handle appointment creation - wrap createAppointment to return void
+  const handleCreateAppointment = async (data: any) => {
+    await createAppointment(data);
   };
 
   // Filter today's appointments
@@ -186,7 +190,7 @@ const Calendar = () => {
       <AddAppointmentModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSubmit={createAppointment}
+        onSubmit={handleCreateAppointment}
       />
     </div>
   );
