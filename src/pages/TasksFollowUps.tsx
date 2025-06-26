@@ -1,17 +1,26 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Plus, Calendar, User, CheckCircle } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { AddTaskModal } from '@/components/AddTaskModal';
 import { useTasks } from '@/hooks/useTasks';
 import { useLeads } from '@/hooks/useLeads';
+import { useSearchParams } from 'react-router-dom';
 
 const TasksFollowUps = () => {
   const { tasks, loading, createTask, completeTask } = useTasks();
   const { leads } = useLeads();
   const [showAddModal, setShowAddModal] = useState(false);
   const [filter, setFilter] = useState('All Tasks');
+  const [searchParams] = useSearchParams();
+
+  // Handle URL parameters for filtering
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam && ['All Tasks', 'Due Today', 'Overdue', 'Completed'].includes(filterParam)) {
+      setFilter(filterParam);
+    }
+  }, [searchParams]);
 
   const getLeadName = (leadId: string) => {
     const lead = leads.find(l => l.id === leadId);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -78,6 +77,7 @@ const AllLeads = () => {
             <Button
               onClick={() => setShowAddModal(true)}
               className="bg-blue-600 hover:bg-blue-700"
+              data-testid="add-lead-button"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Lead

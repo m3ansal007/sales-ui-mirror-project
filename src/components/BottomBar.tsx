@@ -1,4 +1,3 @@
-
 import { Calendar, ChevronDown, Mic, Send, Plus, Search, MicOff } from "lucide-react";
 import { useState, useRef } from "react";
 import { useChat } from "@/contexts/ChatContext";
@@ -7,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useColors } from "@/contexts/ColorContext";
 import { VoiceRecorder } from "@/utils/voiceRecorder";
 import { convertSpeechToText } from "@/services/speechService";
+import { useNavigate } from "react-router-dom";
 
 export const BottomBar = () => {
   const [input, setInput] = useState("");
@@ -16,6 +16,7 @@ export const BottomBar = () => {
   const { addMessage, setLoading, isLoading, messages } = useChat();
   const { updateColors } = useColors();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -142,6 +143,37 @@ export const BottomBar = () => {
     }
   };
 
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case "Add Lead":
+        navigate('/leads');
+        // Add a message to trigger the add lead modal
+        setTimeout(() => {
+          const addButton = document.querySelector('[data-testid="add-lead-button"]') as HTMLButtonElement;
+          if (addButton) {
+            addButton.click();
+          } else {
+            // Fallback: send AI message to add lead
+            setInput("Add a new lead");
+          }
+        }, 100);
+        break;
+      case "Follow-ups":
+        navigate('/tasks?filter=Due Today');
+        break;
+      case "Search":
+        // Focus on the search input
+        const searchInput = document.querySelector('input[placeholder*="Ask AI"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.placeholder = "Search leads, tasks, or ask AI...";
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   const quickActions = [
     { label: "Add Lead", icon: Plus },
     { label: "Follow-ups", icon: Calendar },
@@ -155,6 +187,7 @@ export const BottomBar = () => {
           {quickActions.map((action, index) => (
             <button 
               key={index}
+              onClick={() => handleQuickAction(action.label)}
               className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2 flex items-center gap-2 text-white transition-colors"
             >
               <action.icon className="w-4 h-4" />
