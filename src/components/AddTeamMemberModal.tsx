@@ -33,18 +33,6 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
 
     setLoading(true);
     try {
-      // Create user account first
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: Math.random().toString(36).slice(-8) + 'A1!', // Generate random password
-        email_confirm: true,
-        user_metadata: {
-          full_name: formData.name
-        }
-      });
-
-      if (authError) throw authError;
-
       // Create team member record
       const { error: teamError } = await supabase
         .from('team_members')
@@ -61,7 +49,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
 
       toast({
         title: "Success",
-        description: "Team member added successfully. They will receive login credentials via email.",
+        description: "Team member added successfully. They will need to sign up separately using their email address.",
       });
 
       setFormData({
