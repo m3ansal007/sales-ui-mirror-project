@@ -19,6 +19,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     phone: '',
     role: 'Sales Representative',
     status: 'Active'
@@ -34,7 +35,19 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
 
     setLoading(true);
     try {
-      // Create team member record - trigger will automatically create user account
+      // First create the user account directly with provided credentials
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        password: formData.password,
+        email_confirm: true, // Skip email confirmation
+        user_metadata: {
+          full_name: formData.name
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Then create team member record with the new user's ID
       const { error: teamError } = await supabase
         .from('team_members')
         .insert({
@@ -43,7 +56,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
           phone: formData.phone,
           role: formData.role,
           status: formData.status,
-          user_id: user.id
+          user_id: user.id // This is the manager's ID, not the team member's ID
         });
 
       if (teamError) throw teamError;
@@ -70,6 +83,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
     setFormData({
       name: '',
       email: '',
+      password: '',
       phone: '',
       role: 'Sales Representative',
       status: 'Active'
@@ -90,10 +104,20 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
             <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
               <h3 className="text-green-400 font-medium mb-2">Account Created Successfully!</h3>
               <p className="text-sm text-slate-300 mb-3">
-                A login account has been automatically created for {formData.email}.
+                Login account has been created for {formData.email}.
               </p>
-              <p className="text-xs text-yellow-400">
-                ⚠️ The team member will receive login credentials via email and can reset their password if needed.
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-xs text-slate-400">Email:</Label>
+                  <p className="text-white font-mono text-sm">{formData.email}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-400">Password:</Label>
+                  <p className="text-white font-mono text-sm">{formData.password}</p>
+                </div>
+              </div>
+              <p className="text-xs text-green-400 mt-3">
+                ✅ Team member can now login immediately with these credentials.
               </p>
             </div>
             <Button onClick={handleClose} className="w-full bg-blue-600 hover:bg-blue-700">
@@ -124,6 +148,21 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                 className="bg-slate-800 border-slate-700 text-white"
                 required
               />
+            </div>
+
+            <div>
+              <Label htmlFor="password" className="text-slate-300">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="bg-slate-800 border-slate-700 text-white"
+                placeholder="Enter login password"
+                required
+                minLength={6}
+              />
+              <p className="text-xs text-slate-400 mt-1">Minimum 6 characters</p>
             </div>
 
             <div>
