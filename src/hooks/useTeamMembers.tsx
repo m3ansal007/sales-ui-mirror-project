@@ -8,25 +8,17 @@ export interface TeamMember {
   id: string;
   name: string;
   email: string;
-  phone: string | null;
+  phone?: string;
   role: string;
   status: string;
-  hire_date: string | null;
+  hire_date?: string;
   created_at: string;
   updated_at: string;
-  user_id: string;
-}
-
-export interface TeamMemberPerformance {
-  leadsAssigned: number;
-  leadsConverted: number;
-  tasksCompleted: number;
-  tasksTotal: number;
 }
 
 export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [memberPerformance, setMemberPerformance] = useState<Record<string, TeamMemberPerformance>>({});
+  const [memberPerformance, setMemberPerformance] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -38,17 +30,30 @@ export const useTeamMembers = () => {
       const { data, error } = await supabase
         .from('team_members')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setTeamMembers(data || []);
       
       // Fetch performance data for each team member
-      if (data && data.length > 0) {
-        await fetchPerformanceData(data);
+      const performanceData: Record<string, any> = {};
+      for (const member of data || []) {
+        // Get leads assigned to this team member
+        const { data: leadsData } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('assigned_team_member_id', member.id);
+
+        performanceData[member.id] = {
+          leadsAssigned: leadsData?.length || 0,
+          leadsConverted: leadsData?.filter(lead => lead.status === 'Converted').length || 0,
+          tasksCompleted: 0, // Placeholder for tasks
+          tasksTotal: 0 // Placeholder for tasks
+        };
       }
-    } catch (error: any) {
+      setMemberPerformance(performanceData);
+    } catch (error) {
+      console.error('Error fetching team members:', error);
       toast({
         title: "Error",
         description: "Failed to fetch team members",
@@ -59,91 +64,70 @@ export const useTeamMembers = () => {
     }
   };
 
-  const fetchPerformanceData = async (members: TeamMember[]) => {
-    const performanceData: Record<string, TeamMemberPerformance> = {};
+  // Set up real-time subscription for leads to update performance metrics
+  useEffect(() => {
+    if (!user) return;
 
-    for (const member of members) {
-      try {
-        // Fetch leads assigned to this team member
-        const { data: leadsData, error: leadsError } = await supabase
-          .from('leads')
-          .select('status')
-          .eq('assigned_team_member_id', member.id);
+    fetchTeamMembers();
 
-        if (leadsError) throw leadsError;
+    // Subscribe to real-time changes on leads to update performance
+    const leadsChannel = supabase
+      .channel('team-performance-leads')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Lead change detected for team performance:', payload);
+          // Refetch team members and performance data when leads change
+          setTimeout(() => {
+            fetchTeamMembers();
+          }, 100);
+        }
+      )
+      .subscribe();
 
-        const leadsAssigned = leadsData?.length || 0;
-        const leadsConverted = leadsData?.filter(lead => 
-          lead.status === 'Converted' || lead.status === 'Won'
-        ).length || 0;
-
-        // Fetch tasks assigned to this team member
-        const { data: tasksData, error: tasksError } = await supabase
-          .from('tasks')
-          .select('status')
-          .eq('user_id', user.id); // This should ideally be the team member's user_id
-
-        if (tasksError) throw tasksError;
-
-        const tasksTotal = tasksData?.length || 0;
-        const tasksCompleted = tasksData?.filter(task => 
-          task.status === 'Completed'
-        ).length || 0;
-
-        performanceData[member.id] = {
-          leadsAssigned,
-          leadsConverted,
-          tasksCompleted,
-          tasksTotal
-        };
-      } catch (error) {
-        console.error(`Error fetching performance for ${member.name}:`, error);
-        performanceData[member.id] = {
-          leadsAssigned: 0,
-          leadsConverted: 0,
-          tasksCompleted: 0,
-          tasksTotal: 0
-        };
-      }
-    }
-
-    setMemberPerformance(performanceData);
-  };
+    return () => {
+      supabase.removeChannel(leadsChannel);
+    };
+  }, [user]);
 
   const deleteTeamMember = async (memberId: string) => {
+    if (!user) return false;
+
     try {
       const { error } = await supabase
         .from('team_members')
         .delete()
-        .eq('id', memberId)
-        .eq('user_id', user?.id);
+        .eq('id', memberId);
 
       if (error) throw error;
-
+      
+      setTeamMembers(prev => prev.filter(member => member.id !== memberId));
       toast({
         title: "Success",
         description: "Team member deleted successfully",
       });
-
-      fetchTeamMembers();
-    } catch (error: any) {
+      return true;
+    } catch (error) {
+      console.error('Error deleting team member:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete team member",
+        description: "Failed to delete team member",
         variant: "destructive",
       });
+      return false;
     }
   };
-
-  useEffect(() => {
-    fetchTeamMembers();
-  }, [user]);
 
   return {
     teamMembers,
     memberPerformance,
     loading,
     refetch: fetchTeamMembers,
-    deleteTeamMember
+    deleteTeamMember,
   };
 };

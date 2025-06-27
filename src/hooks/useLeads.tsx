@@ -48,6 +48,60 @@ export const useLeads = () => {
     }
   };
 
+  // Set up real-time subscription for leads
+  useEffect(() => {
+    if (!user) return;
+
+    fetchLeads();
+
+    // Subscribe to real-time changes
+    const leadsChannel = supabase
+      .channel('leads-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('New lead added:', payload.new);
+          setLeads(prev => [payload.new as Lead, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Lead updated:', payload.new);
+          setLeads(prev => prev.map(lead => 
+            lead.id === payload.new.id ? payload.new as Lead : lead
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('Lead deleted:', payload.old);
+          setLeads(prev => prev.filter(lead => lead.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(leadsChannel);
+    };
+  }, [user]);
+
   const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) {
       toast({
@@ -85,7 +139,7 @@ export const useLeads = () => {
         throw error;
       }
       
-      setLeads(prev => [data, ...prev]);
+      // No need to manually update state here - real-time will handle it
       toast({
         title: "Success",
         description: "Lead created successfully",
@@ -115,7 +169,7 @@ export const useLeads = () => {
 
       if (error) throw error;
       
-      setLeads(prev => prev.map(lead => lead.id === id ? data : lead));
+      // No need to manually update state here - real-time will handle it
       toast({
         title: "Success",
         description: "Lead updated successfully",
@@ -143,7 +197,7 @@ export const useLeads = () => {
 
       if (error) throw error;
       
-      setLeads(prev => prev.filter(lead => lead.id !== id));
+      // No need to manually update state here - real-time will handle it
       toast({
         title: "Success",
         description: "Lead deleted successfully",
@@ -159,10 +213,6 @@ export const useLeads = () => {
       return false;
     }
   };
-
-  useEffect(() => {
-    fetchLeads();
-  }, [user]);
 
   return {
     leads,

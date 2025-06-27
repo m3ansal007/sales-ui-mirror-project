@@ -13,9 +13,9 @@ export const LeadActivityFeed = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      if (!user) return;
+    if (!user) return;
 
+    const fetchActivities = async () => {
       try {
         const { data, error } = await supabase
           .from('activities')
@@ -31,6 +31,27 @@ export const LeadActivityFeed = () => {
     };
 
     fetchActivities();
+
+    // Subscribe to real-time activity changes
+    const activitiesChannel = supabase
+      .channel('activities-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'activities'
+        },
+        (payload) => {
+          console.log('New activity:', payload.new);
+          setActivities(prev => [payload.new, ...prev.slice(0, 9)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(activitiesChannel);
+    };
   }, [user]);
 
   const getActivityIcon = (type: string) => {
