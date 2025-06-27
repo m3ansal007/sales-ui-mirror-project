@@ -299,6 +299,7 @@ export type Database = {
           phone: string | null
           role: string
           status: string
+          temp_password: string | null
           updated_at: string
           user_id: string
         }
@@ -311,6 +312,7 @@ export type Database = {
           phone?: string | null
           role?: string
           status?: string
+          temp_password?: string | null
           updated_at?: string
           user_id: string
         }
@@ -323,6 +325,7 @@ export type Database = {
           phone?: string | null
           role?: string
           status?: string
+          temp_password?: string | null
           updated_at?: string
           user_id?: string
         }
