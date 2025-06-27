@@ -155,6 +155,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          assigned_team_member_id: string | null
           assigned_to: string | null
           company: string | null
           created_at: string
@@ -170,6 +171,7 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          assigned_team_member_id?: string | null
           assigned_to?: string | null
           company?: string | null
           created_at?: string
@@ -185,6 +187,7 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          assigned_team_member_id?: string | null
           assigned_to?: string | null
           company?: string | null
           created_at?: string
@@ -199,7 +202,15 @@ export type Database = {
           user_id?: string
           value?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_team_member_id_fkey"
+            columns: ["assigned_team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

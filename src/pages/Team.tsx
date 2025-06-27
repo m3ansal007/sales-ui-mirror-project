@@ -1,14 +1,15 @@
 
-import { Users, Plus, Mail, Phone } from "lucide-react";
+import { Users, Plus, Mail, Phone, Trash2 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
 import AddTeamMemberModal from "@/components/AddTeamMemberModal";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { Button } from "@/components/ui/button";
 
 const Team = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [filter, setFilter] = useState('All Members');
-  const { teamMembers, loading, refetch } = useTeamMembers();
+  const { teamMembers, memberPerformance, loading, refetch, deleteTeamMember } = useTeamMembers();
 
   const filteredMembers = teamMembers.filter(member => {
     if (filter === 'All Members') return true;
@@ -17,14 +18,10 @@ const Team = () => {
     return true;
   });
 
-  // Generate some mock performance data for display
-  const getMockPerformanceData = (member: any) => {
-    const baseAssigned = Math.floor(Math.random() * 40) + 40;
-    const baseConverted = Math.floor(baseAssigned * (0.4 + Math.random() * 0.3));
-    return {
-      leadsAssigned: baseAssigned,
-      leadsConverted: baseConverted
-    };
+  const handleDeleteMember = async (memberId: string, memberName: string) => {
+    if (window.confirm(`Are you sure you want to delete ${memberName}? This action cannot be undone.`)) {
+      await deleteTeamMember(memberId);
+    }
   };
 
   return (
@@ -96,21 +93,41 @@ const Team = () => {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {filteredMembers.map((member) => {
-                const performanceData = getMockPerformanceData(member);
+                const performance = memberPerformance[member.id] || {
+                  leadsAssigned: 0,
+                  leadsConverted: 0,
+                  tasksCompleted: 0,
+                  tasksTotal: 0
+                };
+                
+                const conversionRate = performance.leadsAssigned > 0 
+                  ? Math.round((performance.leadsConverted / performance.leadsAssigned) * 100)
+                  : 0;
+
                 return (
                   <div key={member.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800/50 transition-colors">
                     <div className="flex items-start justify-between mb-4">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="text-white font-medium text-lg">{member.name}</h3>
                         <p className="text-slate-400 text-sm">{member.role}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.status === 'Active' ? 'bg-green-500/20 text-green-400' : 
-                        member.status === 'Away' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
-                        {member.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          member.status === 'Active' ? 'bg-green-500/20 text-green-400' : 
+                          member.status === 'Away' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {member.status}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteMember(member.id, member.name)}
+                          className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-2 mb-4">
@@ -129,23 +146,34 @@ const Team = () => {
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
                       <div>
                         <p className="text-slate-400 text-xs">Leads Assigned</p>
-                        <p className="text-white font-medium">{performanceData.leadsAssigned}</p>
+                        <p className="text-white font-medium">{performance.leadsAssigned}</p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-xs">Leads Converted</p>
-                        <p className="text-green-400 font-medium">{performanceData.leadsConverted}</p>
+                        <p className="text-green-400 font-medium">{performance.leadsConverted}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <p className="text-slate-400 text-xs">Tasks Completed</p>
+                        <p className="text-blue-400 font-medium">{performance.tasksCompleted}/{performance.tasksTotal}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs">Conversion Rate</p>
+                        <p className="text-white font-medium">{conversionRate}%</p>
                       </div>
                     </div>
 
                     <div className="mt-4">
                       <div className="flex justify-between text-xs text-slate-400 mb-1">
-                        <span>Conversion Rate</span>
-                        <span>{Math.round((performanceData.leadsConverted / performanceData.leadsAssigned) * 100)}%</span>
+                        <span>Performance</span>
+                        <span>{conversionRate}%</span>
                       </div>
                       <div className="w-full bg-slate-700 rounded-full h-2">
                         <div 
                           className="bg-blue-500 h-2 rounded-full" 
-                          style={{ width: `${(performanceData.leadsConverted / performanceData.leadsAssigned) * 100}%` }}
+                          style={{ width: `${Math.min(conversionRate, 100)}%` }}
                         ></div>
                       </div>
                     </div>
