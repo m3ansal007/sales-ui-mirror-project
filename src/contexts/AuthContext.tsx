@@ -35,6 +35,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Redirect to auth page after sign out
+        if (event === 'SIGNED_OUT') {
+          window.location.href = '/auth';
+        }
       }
     );
 
@@ -75,7 +80,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+      }
+      // Clear local state immediately
+      setUser(null);
+      setSession(null);
+      // Redirect to auth page
+      window.location.href = '/auth';
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Even if there's an error, clear local state and redirect
+      setUser(null);
+      setSession(null);
+      window.location.href = '/auth';
+    }
   };
 
   const value = {

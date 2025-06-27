@@ -10,11 +10,18 @@ export const AuthButton = () => {
   const { toast } = useToast();
 
   const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been signed out successfully",
-    });
+    try {
+      toast({
+        title: "Signing out...",
+        description: "Please wait",
+      });
+      await signOut();
+    } catch (error) {
+      toast({
+        title: "Sign out completed",
+        description: "You have been signed out",
+      });
+    }
   };
 
   if (!user) return null;
