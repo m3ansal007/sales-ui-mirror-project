@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +34,7 @@ export const useLeads = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched leads:', data?.length || 0);
       setLeads(data || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
@@ -52,11 +52,12 @@ export const useLeads = () => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('Setting up leads real-time subscription...');
     fetchLeads();
 
     // Subscribe to real-time changes
     const leadsChannel = supabase
-      .channel('leads-changes')
+      .channel('leads-realtime-updates')
       .on(
         'postgres_changes',
         {
@@ -65,8 +66,21 @@ export const useLeads = () => {
           table: 'leads'
         },
         (payload) => {
-          console.log('New lead added:', payload.new);
-          setLeads(prev => [payload.new as Lead, ...prev]);
+          console.log('Real-time: New lead added:', payload.new);
+          const newLead = payload.new as Lead;
+          setLeads(prev => {
+            // Check if lead already exists to avoid duplicates
+            if (prev.some(lead => lead.id === newLead.id)) {
+              return prev;
+            }
+            return [newLead, ...prev];
+          });
+          
+          // Show toast notification for new leads
+          toast({
+            title: "New Lead Added",
+            description: `${newLead.name} has been added to your leads`,
+          });
         }
       )
       .on(
@@ -77,9 +91,10 @@ export const useLeads = () => {
           table: 'leads'
         },
         (payload) => {
-          console.log('Lead updated:', payload.new);
+          console.log('Real-time: Lead updated:', payload.new);
+          const updatedLead = payload.new as Lead;
           setLeads(prev => prev.map(lead => 
-            lead.id === payload.new.id ? payload.new as Lead : lead
+            lead.id === updatedLead.id ? updatedLead : lead
           ));
         }
       )
@@ -91,16 +106,19 @@ export const useLeads = () => {
           table: 'leads'
         },
         (payload) => {
-          console.log('Lead deleted:', payload.old);
+          console.log('Real-time: Lead deleted:', payload.old);
           setLeads(prev => prev.filter(lead => lead.id !== payload.old.id));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Leads subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up leads subscription...');
       supabase.removeChannel(leadsChannel);
     };
-  }, [user]);
+  }, [user, toast]);
 
   const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) {
@@ -126,7 +144,7 @@ export const useLeads = () => {
         user_id: user.id
       };
 
-      console.log('Inserting lead data:', cleanData);
+      console.log('Creating lead:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')
@@ -139,7 +157,9 @@ export const useLeads = () => {
         throw error;
       }
       
-      // No need to manually update state here - real-time will handle it
+      console.log('Lead created successfully:', data);
+      
+      // Real-time subscription will handle the UI update automatically
       toast({
         title: "Success",
         description: "Lead created successfully",

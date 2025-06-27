@@ -2,11 +2,21 @@
 import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useLeads";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 export const LeadMetricsCards = () => {
   const navigate = useNavigate();
   const { leads } = useLeads();
+  const [animateCount, setAnimateCount] = useState(false);
+
+  // Trigger animation when leads count changes
+  useEffect(() => {
+    if (leads.length > 0) {
+      setAnimateCount(true);
+      const timer = setTimeout(() => setAnimateCount(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [leads.length]);
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
@@ -28,7 +38,8 @@ export const LeadMetricsCards = () => {
         color: "from-blue-500 to-blue-600",
         bgColor: "bg-blue-500/10",
         borderColor: "border-blue-500/30",
-        onClick: () => navigate("/leads")
+        onClick: () => navigate("/leads"),
+        animate: animateCount
       },
       {
         title: "Hot Leads",
@@ -71,7 +82,7 @@ export const LeadMetricsCards = () => {
         onClick: () => navigate("/calendar")
       }
     ];
-  }, [leads, navigate]);
+  }, [leads, navigate, animateCount]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
@@ -79,7 +90,9 @@ export const LeadMetricsCards = () => {
         <div
           key={index}
           onClick={metric.onClick}
-          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-200 hover:scale-105 cursor-pointer group`}
+          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-200 hover:scale-105 cursor-pointer group ${
+            metric.animate ? 'animate-pulse' : ''
+          }`}
         >
           <div className="flex items-center justify-between mb-4">
             <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color}`}>
@@ -88,7 +101,11 @@ export const LeadMetricsCards = () => {
           </div>
           <div>
             <p className="text-slate-400 text-sm mb-1">{metric.title}</p>
-            <p className="text-white text-2xl font-bold mb-1">{metric.value}</p>
+            <p className={`text-white text-2xl font-bold mb-1 transition-all duration-300 ${
+              metric.animate ? 'scale-110 text-blue-400' : ''
+            }`}>
+              {metric.value}
+            </p>
             <p className="text-slate-500 text-xs">{metric.change}</p>
           </div>
         </div>
