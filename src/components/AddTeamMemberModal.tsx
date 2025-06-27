@@ -35,19 +35,8 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
 
     setLoading(true);
     try {
-      // First create the user account directly with provided credentials
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: formData.password,
-        email_confirm: true, // Skip email confirmation
-        user_metadata: {
-          full_name: formData.name
-        }
-      });
-
-      if (authError) throw authError;
-
-      // Then create team member record with the new user's ID
+      // Create team member record with the provided password in metadata
+      // The database trigger will automatically create a user account
       const { error: teamError } = await supabase
         .from('team_members')
         .insert({
@@ -56,7 +45,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
           phone: formData.phone,
           role: formData.role,
           status: formData.status,
-          user_id: user.id // This is the manager's ID, not the team member's ID
+          user_id: user.id // This is the manager's ID who's creating the team member
         });
 
       if (teamError) throw teamError;
@@ -64,7 +53,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
       setShowSuccess(true);
       toast({
         title: "Success",
-        description: "Team member and login account created successfully!",
+        description: "Team member added successfully!",
       });
 
       onSuccess();
@@ -102,9 +91,9 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
         {showSuccess ? (
           <div className="space-y-4">
             <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
-              <h3 className="text-green-400 font-medium mb-2">Account Created Successfully!</h3>
+              <h3 className="text-green-400 font-medium mb-2">Team Member Added Successfully!</h3>
               <p className="text-sm text-slate-300 mb-3">
-                Login account has been created for {formData.email}.
+                {formData.name} has been added to your team. A login account will be created automatically.
               </p>
               <div className="space-y-2">
                 <div>
@@ -112,12 +101,12 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                   <p className="text-white font-mono text-sm">{formData.email}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-400">Password:</Label>
+                  <Label className="text-xs text-slate-400">Suggested Password:</Label>
                   <p className="text-white font-mono text-sm">{formData.password}</p>
                 </div>
               </div>
-              <p className="text-xs text-green-400 mt-3">
-                ✅ Team member can now login immediately with these credentials.
+              <p className="text-xs text-yellow-400 mt-3">
+                ⚠️ The team member can use these credentials to login, or they can reset their password if needed.
               </p>
             </div>
             <Button onClick={handleClose} className="w-full bg-blue-600 hover:bg-blue-700">
@@ -151,18 +140,18 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-slate-300">Password</Label>
+              <Label htmlFor="password" className="text-slate-300">Suggested Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="bg-slate-800 border-slate-700 text-white"
-                placeholder="Enter login password"
+                placeholder="Enter suggested password"
                 required
                 minLength={6}
               />
-              <p className="text-xs text-slate-400 mt-1">Minimum 6 characters</p>
+              <p className="text-xs text-slate-400 mt-1">Minimum 6 characters - you can share this with the team member</p>
             </div>
 
             <div>
@@ -218,7 +207,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {loading ? 'Creating...' : 'Create Account & Add Member'}
+                {loading ? 'Adding...' : 'Add Team Member'}
               </Button>
             </div>
           </form>
