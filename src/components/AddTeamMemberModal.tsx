@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
     status: 'Active'
   });
   const [loading, setLoading] = useState(false);
-  const [generatedCredentials, setGeneratedCredentials] = useState<{email: string, password: string} | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -34,7 +35,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
     setLoading(true);
     try {
       // Create team member record - trigger will automatically create user account
-      const { data: teamData, error: teamError } = await supabase
+      const { error: teamError } = await supabase
         .from('team_members')
         .insert({
           name: formData.name,
@@ -43,29 +44,14 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
           role: formData.role,
           status: formData.status,
           user_id: user.id
-        })
-        .select()
-        .single();
+        });
 
       if (teamError) throw teamError;
 
-      // Get the generated password from the trigger
-      const { data: authUser, error: authError } = await supabase
-        .from('auth.users')
-        .select('raw_user_meta_data')
-        .eq('email', formData.email)
-        .single();
-
-      const tempPassword = authUser?.raw_user_meta_data?.temp_password || 'Generated automatically';
-
-      setGeneratedCredentials({
-        email: formData.email,
-        password: tempPassword
-      });
-
+      setShowSuccess(true);
       toast({
         title: "Success",
-        description: "Team member and login account created successfully! Please save the credentials shown below.",
+        description: "Team member and login account created successfully!",
       });
 
       onSuccess();
@@ -88,7 +74,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
       role: 'Sales Representative',
       status: 'Active'
     });
-    setGeneratedCredentials(null);
+    setShowSuccess(false);
     onOpenChange(false);
   };
 
@@ -99,22 +85,16 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
           <DialogTitle>Add Team Member</DialogTitle>
         </DialogHeader>
         
-        {generatedCredentials ? (
+        {showSuccess ? (
           <div className="space-y-4">
             <div className="p-4 bg-green-900/20 border border-green-700 rounded-lg">
               <h3 className="text-green-400 font-medium mb-2">Account Created Successfully!</h3>
-              <p className="text-sm text-slate-300 mb-3">Login credentials:</p>
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-xs text-slate-400">Email:</Label>
-                  <p className="text-white font-mono text-sm">{generatedCredentials.email}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-slate-400">Password:</Label>
-                  <p className="text-white font-mono text-sm">{generatedCredentials.password}</p>
-                </div>
-              </div>
-              <p className="text-xs text-yellow-400 mt-3">⚠️ Please save these credentials - they won't be shown again!</p>
+              <p className="text-sm text-slate-300 mb-3">
+                A login account has been automatically created for {formData.email}.
+              </p>
+              <p className="text-xs text-yellow-400">
+                ⚠️ The team member will receive login credentials via email and can reset their password if needed.
+              </p>
             </div>
             <Button onClick={handleClose} className="w-full bg-blue-600 hover:bg-blue-700">
               Done
