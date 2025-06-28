@@ -58,6 +58,9 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           value: ''
         });
         onClose();
+        
+        // Refresh the page to show updated dashboard numbers
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error submitting lead:', error);
