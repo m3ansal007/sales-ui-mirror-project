@@ -7,11 +7,31 @@ export const LeadMetricsCards = () => {
   const navigate = useNavigate();
   const { leads } = useLeads();
   const [animateCount, setAnimateCount] = useState(false);
-  const [animateCards, setAnimateCards] = useState<{ [key: string]: boolean }>({});
   const previousCountRef = useRef(0);
-  const previousMetricsRef = useRef<{ [key: string]: number }>({});
 
-  // Calculate metrics
+  // Trigger animation when leads count changes
+  useEffect(() => {
+    const currentCount = leads.length;
+    const previousCount = previousCountRef.current;
+    
+    console.log('Leads count changed:', previousCount, '->', currentCount);
+    
+    // Only animate if count increased and we have a valid previous count
+    if (currentCount > previousCount && previousCount > 0) {
+      console.log('Triggering animation for lead count increase');
+      setAnimateCount(true);
+      const timer = setTimeout(() => {
+        console.log('Stopping animation');
+        setAnimateCount(false);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Always update the ref after checking
+    previousCountRef.current = currentCount;
+  }, [leads.length]); // Only depend on leads.length
+
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
     const hotLeads = leads.filter(lead => lead.status === 'Contacted' || lead.status === 'Follow-Up').length;
@@ -25,7 +45,6 @@ export const LeadMetricsCards = () => {
 
     return [
       {
-        id: 'totalLeads',
         title: "Total Leads",
         value: totalLeads.toString(),
         change: totalLeads === 0 ? "Start adding leads" : `+${Math.floor(totalLeads * 0.1)} this week`,
@@ -34,10 +53,9 @@ export const LeadMetricsCards = () => {
         bgColor: "bg-blue-500/10",
         borderColor: "border-blue-500/30",
         onClick: () => navigate("/leads"),
-        animate: animateCount || animateCards['totalLeads']
+        animate: animateCount
       },
       {
-        id: 'hotLeads',
         title: "Hot Leads",
         value: hotLeads.toString(),
         change: hotLeads === 0 ? "No hot leads yet" : `${Math.round((hotLeads/totalLeads) * 100)}% of total`,
@@ -45,11 +63,9 @@ export const LeadMetricsCards = () => {
         color: "from-red-500 to-orange-600",
         bgColor: "bg-red-500/10",
         borderColor: "border-red-500/30",
-        onClick: () => navigate("/leads?status=Contacted"),
-        animate: animateCards['hotLeads']
+        onClick: () => navigate("/leads?status=Contacted")
       },
       {
-        id: 'followUps',
         title: "Follow-Ups Today",
         value: followUpsToday.toString(),
         change: followUpsToday === 0 ? "No follow-ups scheduled" : "Need attention",
@@ -57,11 +73,9 @@ export const LeadMetricsCards = () => {
         color: "from-yellow-500 to-orange-600",
         bgColor: "bg-yellow-500/10",
         borderColor: "border-yellow-500/30",
-        onClick: () => navigate("/tasks"),
-        animate: animateCards['followUps']
+        onClick: () => navigate("/tasks")
       },
       {
-        id: 'converted',
         title: "Converted Leads",
         value: convertedLeads.toString(),
         change: convertedLeads === 0 ? "No conversions yet" : `${Math.round((convertedLeads/totalLeads) * 100)}% conversion rate`,
@@ -69,11 +83,9 @@ export const LeadMetricsCards = () => {
         color: "from-green-500 to-green-600",
         bgColor: "bg-green-500/10",
         borderColor: "border-green-500/30",
-        onClick: () => navigate("/pipeline"),
-        animate: animateCards['converted']
+        onClick: () => navigate("/pipeline")
       },
       {
-        id: 'meetings',
         title: "Upcoming Meetings",
         value: upcomingMeetings.toString(),
         change: upcomingMeetings === 0 ? "No meetings scheduled" : "This week",
@@ -81,77 +93,16 @@ export const LeadMetricsCards = () => {
         color: "from-purple-500 to-purple-600",
         bgColor: "bg-purple-500/10",
         borderColor: "border-purple-500/30",
-        onClick: () => navigate("/calendar"),
-        animate: animateCards['meetings']
+        onClick: () => navigate("/calendar")
       }
     ];
-  }, [leads, navigate, animateCount, animateCards]);
-
-  // Trigger animation when any metric changes
-  useEffect(() => {
-    const currentMetrics = {
-      totalLeads: leads.length,
-      hotLeads: leads.filter(lead => lead.status === 'Contacted' || lead.status === 'Follow-Up').length,
-      followUps: leads.filter(lead => lead.status === 'Follow-Up').length,
-      converted: leads.filter(lead => lead.status === 'Converted').length,
-      meetings: Math.floor(leads.length * 0.1)
-    };
-
-    const previousMetrics = previousMetricsRef.current;
-    const newAnimations: { [key: string]: boolean } = {};
-
-    // Check each metric for changes
-    Object.entries(currentMetrics).forEach(([key, value]) => {
-      if (previousMetrics[key] !== undefined && value > previousMetrics[key]) {
-        console.log(`Triggering animation for ${key}: ${previousMetrics[key]} -> ${value}`);
-        newAnimations[key] = true;
-      }
-    });
-
-    // If any metric changed, trigger animations
-    if (Object.keys(newAnimations).length > 0) {
-      setAnimateCards(newAnimations);
-      
-      // Clear animations after 1 second
-      const timer = setTimeout(() => {
-        setAnimateCards({});
-      }, 1000);
-
-      // Update previous metrics
-      previousMetricsRef.current = currentMetrics;
-
-      return () => clearTimeout(timer);
-    }
-
-    // Update ref if no animation triggered
-    previousMetricsRef.current = currentMetrics;
-  }, [leads]);
-
-  // Legacy animation for total leads count (keeping for backward compatibility)
-  useEffect(() => {
-    const currentCount = leads.length;
-    const previousCount = previousCountRef.current;
-    
-    if (currentCount > previousCount && previousCount >= 0) {
-      console.log('Triggering legacy animation for lead count increase');
-      setAnimateCount(true);
-      const timer = setTimeout(() => {
-        setAnimateCount(false);
-      }, 1000);
-      
-      previousCountRef.current = currentCount;
-      
-      return () => clearTimeout(timer);
-    }
-    
-    previousCountRef.current = currentCount;
-  }, [leads.length]);
+  }, [leads, navigate, animateCount]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       {metrics.map((metric, index) => (
         <div
-          key={metric.id}
+          key={index}
           onClick={metric.onClick}
           className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
             metric.animate ? 'animate-pulse scale-105' : ''

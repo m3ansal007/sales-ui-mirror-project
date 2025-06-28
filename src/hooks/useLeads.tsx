@@ -161,16 +161,8 @@ export const useLeads = () => {
       
       console.log('Lead created successfully:', data);
       
-      // Immediately add to state for instant UI feedback (before real-time update)
-      setLeads(prev => {
-        // Check if it already exists to avoid duplicates
-        if (prev.some(lead => lead.id === data.id)) {
-          console.log('Lead already exists in state');
-          return prev;
-        }
-        console.log('Adding lead immediately to state:', data.name);
-        return [data, ...prev];
-      });
+      // Don't immediately add to state - let the real-time subscription handle it
+      // This prevents duplicate entries and ensures proper real-time behavior
       
       toast({
         title: "Success",
