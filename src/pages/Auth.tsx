@@ -14,6 +14,9 @@ const Auth = () => {
   const [role, setRole] = useState('Sales Associate');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showRoleMismatchWarning, setShowRoleMismatchWarning] = useState(false);
+  const [lastAttemptedRole, setLastAttemptedRole] = useState('');
+  const [userActualRole, setUserActualRole] = useState('');
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +50,8 @@ const Auth = () => {
     }
 
     setLoading(true);
+    // Clear any previous role mismatch warnings
+    setShowRoleMismatchWarning(false);
 
     try {
       let result;
@@ -59,12 +64,26 @@ const Auth = () => {
       }
 
       if (result.error) {
+        // Check if this is a role mismatch error
+        if (result.error.message.includes('Access denied') && result.error.message.includes('registered as')) {
+          // Extract the actual role from the error message
+          const match = result.error.message.match(/registered as (\w+(?:\s+\w+)*)/);
+          if (match) {
+            setUserActualRole(match[1]);
+            setLastAttemptedRole(role);
+            setShowRoleMismatchWarning(true);
+          }
+        }
+        
         toast({
           title: "Authentication Error",
           description: result.error.message,
           variant: "destructive",
         });
       } else {
+        // Clear any warnings on successful login/signup
+        setShowRoleMismatchWarning(false);
+        
         if (!isLogin) {
           toast({
             title: "Account Created Successfully!",
@@ -86,6 +105,19 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRoleChange = (newRole: string) => {
+    setRole(newRole);
+    // Clear role mismatch warning when user changes role
+    if (showRoleMismatchWarning) {
+      setShowRoleMismatchWarning(false);
+    }
+  };
+
+  const handleCorrectRole = () => {
+    setRole(userActualRole);
+    setShowRoleMismatchWarning(false);
   };
 
   const getRoleDescription = (selectedRole: string) => {
@@ -192,7 +224,7 @@ const Auth = () => {
                 <select
                   id="role"
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => handleRoleChange(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
@@ -208,17 +240,25 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* Security Notice for Login */}
-            {isLogin && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-amber-300 text-sm font-medium">Security Notice</p>
-                    <p className="text-amber-200 text-xs mt-1">
-                      You can only access the role your account was registered for. 
-                      Select the role you signed up with.
+            {/* Role Mismatch Warning - Only shown after failed login attempt */}
+            {showRoleMismatchWarning && isLogin && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-red-300 text-sm font-medium mb-2">Access Denied</p>
+                    <p className="text-red-200 text-xs mb-3">
+                      You tried to login as <strong>{lastAttemptedRole}</strong>, but this account is registered as <strong>{userActualRole}</strong>.
                     </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCorrectRole}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                      >
+                        Switch to {userActualRole}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -251,7 +291,10 @@ const Auth = () => {
 
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setShowRoleMismatchWarning(false); // Clear warning when switching modes
+              }}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
