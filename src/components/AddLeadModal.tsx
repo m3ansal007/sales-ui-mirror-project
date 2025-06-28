@@ -40,7 +40,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
         source: formData.source || undefined,
         status: formData.status,
         notes: formData.notes.trim() || undefined,
-        value: formData.value ? parseFloat(formData.value) : undefined
+        value: formData.value && formData.value.trim() ? parseFloat(formData.value.trim()) : undefined
       };
       
       console.log('Submitting lead data:', leadData);

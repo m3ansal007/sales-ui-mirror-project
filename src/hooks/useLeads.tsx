@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,9 +56,10 @@ export const useLeads = () => {
     console.log('Setting up leads real-time subscription...');
     fetchLeads();
 
-    // Subscribe to real-time changes
+    // Subscribe to real-time changes with a unique channel name
+    const channelName = `leads-${user.id}-${Date.now()}`;
     const leadsChannel = supabase
-      .channel('leads-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -113,6 +115,16 @@ export const useLeads = () => {
       )
       .subscribe((status) => {
         console.log('Leads subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to leads changes');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error, attempting to reconnect...');
+          // Attempt to resubscribe after a delay
+          setTimeout(() => {
+            leadsChannel.unsubscribe();
+            fetchLeads(); // Refresh data manually
+          }, 2000);
+        }
       });
 
     return () => {
@@ -132,7 +144,7 @@ export const useLeads = () => {
     }
 
     try {
-      // Clean the data before insertion
+      // Clean the data before insertion - ensure proper values
       const cleanData = {
         name: leadData.name,
         email: leadData.email || null,
@@ -141,7 +153,7 @@ export const useLeads = () => {
         source: leadData.source || null,
         status: leadData.status || 'New',
         notes: leadData.notes || null,
-        value: leadData.value || null,
+        value: leadData.value ? Number(leadData.value) : null,
         user_id: user.id
       };
 
@@ -160,7 +172,14 @@ export const useLeads = () => {
       
       console.log('Lead created successfully:', data);
       
-      // Real-time subscription will handle the UI update automatically
+      // Manual update for immediate UI response (backup for real-time)
+      setLeads(prev => {
+        if (prev.some(lead => lead.id === data.id)) {
+          return prev;
+        }
+        return [data, ...prev];
+      });
+      
       toast({
         title: "Success",
         description: "Lead created successfully",
@@ -190,7 +209,11 @@ export const useLeads = () => {
 
       if (error) throw error;
       
-      // No need to manually update state here - real-time will handle it
+      // Manual update for immediate UI response
+      setLeads(prev => prev.map(lead => 
+        lead.id === id ? { ...lead, ...updates } : lead
+      ));
+      
       toast({
         title: "Success",
         description: "Lead updated successfully",
@@ -218,7 +241,9 @@ export const useLeads = () => {
 
       if (error) throw error;
       
-      // No need to manually update state here - real-time will handle it
+      // Manual update for immediate UI response
+      setLeads(prev => prev.filter(lead => lead.id !== id));
+      
       toast({
         title: "Success",
         description: "Lead deleted successfully",
