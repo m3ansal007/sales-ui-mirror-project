@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,10 +55,9 @@ export const useLeads = () => {
     console.log('Setting up leads real-time subscription...');
     fetchLeads();
 
-    // Subscribe to real-time changes with a unique channel name
-    const channelName = `leads-realtime-${user.id}-${Date.now()}`;
+    // Subscribe to real-time changes
     const leadsChannel = supabase
-      .channel(channelName)
+      .channel('leads-changes')
       .on(
         'postgres_changes',
         {
@@ -72,7 +70,8 @@ export const useLeads = () => {
           const newLead = payload.new as Lead;
           setLeads(prev => {
             // Check if lead already exists to avoid duplicates
-            if (prev.some(lead => lead.id === newLead.id)) {
+            const exists = prev.some(lead => lead.id === newLead.id);
+            if (exists) {
               console.log('Lead already exists, skipping duplicate');
               return prev;
             }
@@ -116,15 +115,6 @@ export const useLeads = () => {
       )
       .subscribe((status) => {
         console.log('Leads subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to leads changes');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Channel error, attempting to reconnect...');
-          setTimeout(() => {
-            leadsChannel.unsubscribe();
-            fetchLeads();
-          }, 2000);
-        }
       });
 
     return () => {
@@ -144,7 +134,6 @@ export const useLeads = () => {
     }
 
     try {
-      // Clean the data before insertion - ensure proper values
       const cleanData = {
         name: leadData.name,
         email: leadData.email || null,
@@ -171,16 +160,6 @@ export const useLeads = () => {
       }
       
       console.log('Lead created successfully:', data);
-      
-      // Immediate update to ensure UI responds instantly
-      setLeads(prev => {
-        if (prev.some(lead => lead.id === data.id)) {
-          console.log('Lead already exists in state');
-          return prev;
-        }
-        console.log('Adding lead immediately to state:', data.name);
-        return [data, ...prev];
-      });
       
       toast({
         title: "Success",

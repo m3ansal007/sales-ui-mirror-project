@@ -2,31 +2,38 @@
 import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useLeads";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 
 export const LeadMetricsCards = () => {
   const navigate = useNavigate();
   const { leads } = useLeads();
   const [animateCount, setAnimateCount] = useState(false);
-  const [previousCount, setPreviousCount] = useState(0);
+  const previousCountRef = useRef(0);
 
   // Trigger animation when leads count changes
   useEffect(() => {
     const currentCount = leads.length;
+    const previousCount = previousCountRef.current;
+    
     console.log('Leads count changed:', previousCount, '->', currentCount);
     
-    if (currentCount > previousCount) {
+    if (currentCount > previousCount && previousCount >= 0) {
       console.log('Triggering animation for lead count increase');
       setAnimateCount(true);
       const timer = setTimeout(() => {
         console.log('Stopping animation');
         setAnimateCount(false);
       }, 1000);
+      
+      // Update the ref for next comparison
+      previousCountRef.current = currentCount;
+      
       return () => clearTimeout(timer);
     }
     
-    setPreviousCount(currentCount);
-  }, [leads.length, previousCount]);
+    // Update ref if no animation triggered
+    previousCountRef.current = currentCount;
+  }, [leads.length]); // Only depend on leads.length
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
@@ -101,7 +108,7 @@ export const LeadMetricsCards = () => {
           key={index}
           onClick={metric.onClick}
           className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
-            metric.animate ? 'animate-pulse' : ''
+            metric.animate ? 'animate-pulse scale-105' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
