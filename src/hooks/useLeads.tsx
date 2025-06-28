@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -162,7 +161,7 @@ export const useLeads = () => {
       
       console.log('Lead created successfully:', data);
       
-      // Immediately add to state for instant UI feedback
+      // Immediately add to state for instant UI feedback (before real-time update)
       setLeads(prev => {
         // Check if it already exists to avoid duplicates
         if (prev.some(lead => lead.id === data.id)) {
