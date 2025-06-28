@@ -13,16 +13,14 @@ export const LeadMetricsCards = () => {
   // Trigger animation when leads count changes
   useEffect(() => {
     const currentCount = leads.length;
-    if (currentCount > previousCount && currentCount > 0) {
+    if (currentCount > previousCount && previousCount > 0) {
       console.log('Lead count changed:', previousCount, '->', currentCount);
       setAnimateCount(true);
       const timer = setTimeout(() => setAnimateCount(false), 600);
-      setPreviousCount(currentCount);
       return () => clearTimeout(timer);
-    } else if (currentCount !== previousCount) {
-      setPreviousCount(currentCount);
     }
-  }, [leads.length, previousCount]);
+    setPreviousCount(currentCount);
+  }, [leads.length]); // Remove previousCount from dependencies to prevent loop
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
