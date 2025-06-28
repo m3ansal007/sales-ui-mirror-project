@@ -201,7 +201,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Lead Value ($)
+              Lead Value (₹)
             </label>
             <input
               type="number"

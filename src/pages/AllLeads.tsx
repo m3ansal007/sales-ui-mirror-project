@@ -249,7 +249,7 @@ const AllLeads = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-slate-300">
-                        {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
+                        {lead.value ? `₹${lead.value.toLocaleString()}` : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

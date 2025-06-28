@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -147,7 +146,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
               </Select>
             </div>
             <div>
-              <Label htmlFor="value" className="text-slate-300">Value ($)</Label>
+              <Label htmlFor="value" className="text-slate-300">Value (₹)</Label>
               <Input
                 id="value"
                 type="number"
