@@ -1,17 +1,17 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Eye, EyeOff } from 'lucide-react';
+import { Target, Eye, EyeOff, User } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState('Sales Associate');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -53,7 +53,8 @@ const Auth = () => {
       if (isLogin) {
         result = await signIn(email, password);
       } else {
-        result = await signUp(email, password, fullName);
+        // Include role in user metadata during signup
+        result = await signUp(email, password, fullName, role);
       }
 
       if (result.error) {
@@ -108,18 +109,43 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div>
-                <Label htmlFor="fullName" className="text-slate-300">Full Name</Label>
-                <input
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your full name"
-                  required={!isLogin}
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="fullName" className="text-slate-300">Full Name</Label>
+                  <input
+                    id="fullName"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your full name"
+                    required={!isLogin}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="role" className="text-slate-300">Role</Label>
+                  <div className="relative mt-1">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <select
+                      id="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required={!isLogin}
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Sales Manager">Sales Manager</option>
+                      <option value="Sales Associate">Sales Associate</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {role === 'Admin' && 'Full access to all features and team management'}
+                    {role === 'Sales Manager' && 'Manage team members and view all leads'}
+                    {role === 'Sales Associate' && 'Manage your own leads and tasks'}
+                  </p>
+                </div>
+              </>
             )}
 
             <div>

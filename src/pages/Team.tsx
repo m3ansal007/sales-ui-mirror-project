@@ -1,20 +1,22 @@
-
-import { Users, Plus, Mail, Phone, Trash2 } from "lucide-react";
+import { Users, Plus, Mail, Phone, Trash2, UserCheck, UserX } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
 import AddTeamMemberModal from "@/components/AddTeamMemberModal";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const Team = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [filter, setFilter] = useState('All Members');
   const { teamMembers, memberPerformance, loading, refetch, deleteTeamMember } = useTeamMembers();
+  const { userRole } = useAuth();
 
   const filteredMembers = teamMembers.filter(member => {
     if (filter === 'All Members') return true;
     if (filter === 'Active') return member.status === 'Active';
-    if (filter === 'Managers') return member.role.includes('Manager');
+    if (filter === 'Sales Managers') return member.role === 'Sales Manager';
+    if (filter === 'Sales Associates') return member.role === 'Sales Associate';
     return true;
   });
 
@@ -23,6 +25,27 @@ const Team = () => {
       await deleteTeamMember(memberId);
     }
   };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'Admin': return 'bg-purple-500/20 text-purple-400';
+      case 'Sales Manager': return 'bg-blue-500/20 text-blue-400';
+      case 'Sales Associate': return 'bg-green-500/20 text-green-400';
+      default: return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'Admin': return '👑';
+      case 'Sales Manager': return '📊';
+      case 'Sales Associate': return '💼';
+      default: return '👤';
+    }
+  };
+
+  // Check if user has permission to manage team
+  const canManageTeam = userRole === 'Admin' || userRole === 'Sales Manager';
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -33,6 +56,13 @@ const Team = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Team & Roles</h1>
             <p className="text-slate-400">Manage your sales team and track performance</p>
+            {!canManageTeam && (
+              <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                <p className="text-yellow-300 text-sm">
+                  ⚠️ You have view-only access to team information. Contact your admin to manage team members.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-between items-center mb-6">
@@ -58,23 +88,35 @@ const Team = () => {
                 Active
               </button>
               <button 
-                onClick={() => setFilter('Managers')}
+                onClick={() => setFilter('Sales Managers')}
                 className={`px-4 py-2 rounded-lg ${
-                  filter === 'Managers' 
+                  filter === 'Sales Managers' 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
                 }`}
               >
-                Managers
+                Sales Managers
+              </button>
+              <button 
+                onClick={() => setFilter('Sales Associates')}
+                className={`px-4 py-2 rounded-lg ${
+                  filter === 'Sales Associates' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                Sales Associates
               </button>
             </div>
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Team Member
-            </button>
+            {canManageTeam && (
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Team Member
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -85,7 +127,9 @@ const Team = () => {
               <p className="text-lg mb-2">No team members found</p>
               <p className="text-sm">
                 {filter === 'All Members' 
-                  ? 'Add your first team member to get started' 
+                  ? canManageTeam 
+                    ? 'Add your first team member to get started' 
+                    : 'No team members have been added yet'
                   : `No team members match the "${filter}" filter`
                 }
               </p>
@@ -108,17 +152,25 @@ const Team = () => {
                   <div key={member.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800/50 transition-colors">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-white font-medium text-lg">{member.name}</h3>
-                        <p className="text-slate-400 text-sm">{member.role}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{getRoleIcon(member.role)}</span>
+                          <h3 className="text-white font-medium text-lg">{member.name}</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
+                            {member.role}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            member.status === 'Active' ? 'bg-green-500/20 text-green-400' : 
+                            member.status === 'Away' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-red-500/20 text-red-400'
+                          }`}>
+                            {member.status === 'Active' ? <UserCheck className="w-3 h-3 inline mr-1" /> : <UserX className="w-3 h-3 inline mr-1" />}
+                            {member.status}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          member.status === 'Active' ? 'bg-green-500/20 text-green-400' : 
-                          member.status === 'Away' ? 'bg-yellow-500/20 text-yellow-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {member.status}
-                        </span>
+                      {canManageTeam && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -127,7 +179,7 @@ const Team = () => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                      </div>
+                      )}
                     </div>
 
                     <div className="space-y-2 mb-4">
@@ -177,6 +229,15 @@ const Team = () => {
                         ></div>
                       </div>
                     </div>
+
+                    {/* Role-specific information */}
+                    <div className="mt-3 p-2 bg-slate-800/50 rounded-lg">
+                      <p className="text-xs text-slate-400">
+                        {member.role === 'Admin' && '🔧 Full system access and team management'}
+                        {member.role === 'Sales Manager' && '📈 Team oversight and lead management'}
+                        {member.role === 'Sales Associate' && '💼 Individual lead and task management'}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
@@ -185,11 +246,13 @@ const Team = () => {
         </div>
       </div>
 
-      <AddTeamMemberModal
-        open={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        onSuccess={refetch}
-      />
+      {canManageTeam && (
+        <AddTeamMemberModal
+          open={isAddModalOpen}
+          onOpenChange={setIsAddModalOpen}
+          onSuccess={refetch}
+        />
+      )}
     </div>
   );
 };

@@ -20,13 +20,13 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
     email: '',
     password: '',
     phone: '',
-    role: 'Sales Representative',
+    role: 'Sales Associate',
     status: 'Active'
   });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,12 +74,24 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
       email: '',
       password: '',
       phone: '',
-      role: 'Sales Representative',
+      role: 'Sales Associate',
       status: 'Active'
     });
     setShowSuccess(false);
     onOpenChange(false);
   };
+
+  // Get available roles based on current user's role
+  const getAvailableRoles = () => {
+    if (userRole === 'Admin') {
+      return ['Sales Manager', 'Sales Associate'];
+    } else if (userRole === 'Sales Manager') {
+      return ['Sales Associate'];
+    }
+    return ['Sales Associate']; // Default fallback
+  };
+
+  const availableRoles = getAvailableRoles();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,6 +115,10 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                 <div>
                   <Label className="text-xs text-slate-400">Password:</Label>
                   <p className="text-white font-mono text-sm">{formData.password}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-slate-400">Role:</Label>
+                  <p className="text-white text-sm">{formData.role}</p>
                 </div>
               </div>
               <p className="text-xs text-green-400 mt-3">
@@ -172,11 +188,19 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  <SelectItem value="Sales Manager">Sales Manager</SelectItem>
-                  <SelectItem value="Sales Representative">Sales Representative</SelectItem>
-                  <SelectItem value="Sales Associate">Sales Associate</SelectItem>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role === 'Sales Manager' && '📊 '}
+                      {role === 'Sales Associate' && '💼 '}
+                      {role}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-slate-400 mt-1">
+                {formData.role === 'Sales Manager' && 'Can manage team members and view all leads'}
+                {formData.role === 'Sales Associate' && 'Can manage their own leads and tasks'}
+              </p>
             </div>
 
             <div>
