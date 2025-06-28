@@ -11,6 +11,7 @@ interface AuthContextType {
   signIn: (email: string, password: string, selectedRole: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateUserRole: (role: string) => Promise<void>;
+  checkUserRole: (email: string) => Promise<{ role: string | null; error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Get user role from metadata
         if (session?.user) {
-          const role = session.user.user_metadata?.role || 'Sales Associate';
+          const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
           setUserRole(role);
           console.log('User role:', role);
         } else {
@@ -61,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const role = session.user.user_metadata?.role || 'Sales Associate';
+        const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
         setUserRole(role);
       }
       
@@ -70,6 +71,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkUserRole = async (email: string) => {
+    try {
+      // Use Supabase Admin API to check user role without authentication
+      const { data, error } = await supabase.functions.invoke('check-user-role', {
+        body: { email }
+      });
+
+      if (error) {
+        console.error('Error checking user role:', error);
+        return { role: null, error };
+      }
+
+      return { role: data?.role || null, error: null };
+    } catch (error) {
+      console.error('Error in checkUserRole:', error);
+      return { role: null, error };
+    }
+  };
 
   const signUp = async (email: string, password: string, fullName?: string, role?: string) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -92,7 +112,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string, selectedRole: string) => {
     try {
-      // First, authenticate with email and password
+      // First, check what role this email is registered with
+      const roleCheck = await checkUserRole(email);
+      
+      if (roleCheck.role && roleCheck.role !== selectedRole) {
+        // Return role mismatch error WITHOUT attempting authentication
+        return { 
+          error: { 
+            message: `Access denied. This account is registered as ${roleCheck.role}, not ${selectedRole}. Please select the correct role or contact your administrator.`,
+            code: 'ROLE_MISMATCH',
+            actualRole: roleCheck.role,
+            attemptedRole: selectedRole
+          } 
+        };
+      }
+
+      // If role matches or we couldn't determine the role, proceed with authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -102,17 +137,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
-      // Check if the user is authorized for the selected role
+      // Double-check role after successful authentication
       const userAuthorizedRole = data.user?.user_metadata?.authorized_role || data.user?.user_metadata?.role;
       
-      if (userAuthorizedRole !== selectedRole) {
+      if (userAuthorizedRole && userAuthorizedRole !== selectedRole) {
         // Sign out the user immediately if role doesn't match
         await supabase.auth.signOut();
         
-        // Return error without causing page reload
         return { 
           error: { 
-            message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.` 
+            message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.`,
+            code: 'ROLE_MISMATCH',
+            actualRole: userAuthorizedRole,
+            attemptedRole: selectedRole
           } 
         };
       }
@@ -204,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signOut,
     updateUserRole,
+    checkUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

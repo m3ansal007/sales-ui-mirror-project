@@ -65,24 +65,21 @@ const Auth = () => {
 
       if (result.error) {
         // Check if this is a role mismatch error
-        if (result.error.message.includes('Access denied') && result.error.message.includes('registered as')) {
-          // Extract the actual role from the error message
-          const match = result.error.message.match(/registered as (\w+(?:\s+\w+)*)/);
-          if (match) {
-            setUserActualRole(match[1]);
-            setLastAttemptedRole(role);
-            setShowRoleMismatchWarning(true);
-            
-            // Show a specific toast for role mismatch
-            toast({
-              title: "Role Mismatch",
-              description: `This account is registered as ${match[1]}, not ${role}. Please select the correct role.`,
-              variant: "destructive",
-            });
-            
-            // Don't show the generic error toast for role mismatch
-            return;
-          }
+        if (result.error.code === 'ROLE_MISMATCH') {
+          // Extract the actual role from the error
+          setUserActualRole(result.error.actualRole);
+          setLastAttemptedRole(result.error.attemptedRole);
+          setShowRoleMismatchWarning(true);
+          
+          // Show a specific toast for role mismatch
+          toast({
+            title: "🚫 Access Denied - Wrong Role",
+            description: `This account is registered as ${result.error.actualRole}. Please select the correct role.`,
+            variant: "destructive",
+          });
+          
+          // Don't show the generic error toast for role mismatch
+          return;
         }
         
         // Show generic error toast for other errors
@@ -178,6 +175,40 @@ const Auth = () => {
             </p>
           </div>
 
+          {/* Role Mismatch Warning - Shows BEFORE form submission */}
+          {showRoleMismatchWarning && isLogin && (
+            <div className="mb-6 p-4 bg-red-500/10 border-2 border-red-500/50 rounded-lg animate-pulse">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-6 h-6 text-red-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-red-300 text-sm font-bold mb-2">🚫 Access Denied - Wrong Role Selected</p>
+                  <p className="text-red-200 text-sm mb-3">
+                    You tried to login as <strong className="text-red-100">{lastAttemptedRole}</strong>, but this account is registered as <strong className="text-red-100">{userActualRole}</strong>.
+                  </p>
+                  <p className="text-red-200 text-xs mb-3">
+                    Please select the correct role below or contact your administrator if you believe this is an error.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCorrectRole}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors font-medium"
+                    >
+                      ✅ Switch to {userActualRole}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRoleMismatchWarning(false)}
+                      className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
@@ -241,7 +272,9 @@ const Auth = () => {
                   id="role"
                   value={role}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full bg-slate-800 border rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    showRoleMismatchWarning ? 'border-red-500 border-2' : 'border-slate-700'
+                  }`}
                   required
                 >
                   <option value="Admin">{getRoleIcon('Admin')} Admin</option>
@@ -255,40 +288,6 @@ const Auth = () => {
                 </p>
               </div>
             </div>
-
-            {/* Role Mismatch Warning - Persistent and visible */}
-            {showRoleMismatchWarning && isLogin && (
-              <div className="p-4 bg-red-500/10 border-2 border-red-500/50 rounded-lg animate-pulse">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-6 h-6 text-red-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-red-300 text-sm font-bold mb-2">🚫 Access Denied - Wrong Role Selected</p>
-                    <p className="text-red-200 text-sm mb-3">
-                      You tried to login as <strong className="text-red-100">{lastAttemptedRole}</strong>, but this account is registered as <strong className="text-red-100">{userActualRole}</strong>.
-                    </p>
-                    <p className="text-red-200 text-xs mb-3">
-                      Please select the correct role below or contact your administrator if you believe this is an error.
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={handleCorrectRole}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors font-medium"
-                      >
-                        ✅ Switch to {userActualRole}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowRoleMismatchWarning(false)}
-                        className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Account Type Notice for Signup */}
             {!isLogin && (
