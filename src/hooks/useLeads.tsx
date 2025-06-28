@@ -57,7 +57,7 @@ export const useLeads = () => {
     fetchLeads();
 
     // Subscribe to real-time changes with a unique channel name
-    const channelName = `leads-${user.id}-${Date.now()}`;
+    const channelName = `leads-realtime-${user.id}-${Date.now()}`;
     const leadsChannel = supabase
       .channel(channelName)
       .on(
@@ -73,9 +73,10 @@ export const useLeads = () => {
           setLeads(prev => {
             // Check if lead already exists to avoid duplicates
             if (prev.some(lead => lead.id === newLead.id)) {
+              console.log('Lead already exists, skipping duplicate');
               return prev;
             }
-            console.log('Adding new lead to state:', newLead.name);
+            console.log('Adding new lead to state in real-time:', newLead.name);
             return [newLead, ...prev];
           });
           
@@ -119,10 +120,9 @@ export const useLeads = () => {
           console.log('Successfully subscribed to leads changes');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Channel error, attempting to reconnect...');
-          // Attempt to resubscribe after a delay
           setTimeout(() => {
             leadsChannel.unsubscribe();
-            fetchLeads(); // Refresh data manually
+            fetchLeads();
           }, 2000);
         }
       });
@@ -172,11 +172,13 @@ export const useLeads = () => {
       
       console.log('Lead created successfully:', data);
       
-      // Manual update for immediate UI response (backup for real-time)
+      // Immediate update to ensure UI responds instantly
       setLeads(prev => {
         if (prev.some(lead => lead.id === data.id)) {
+          console.log('Lead already exists in state');
           return prev;
         }
+        console.log('Adding lead immediately to state:', data.name);
         return [data, ...prev];
       });
       

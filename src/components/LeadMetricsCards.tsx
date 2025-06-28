@@ -13,14 +13,20 @@ export const LeadMetricsCards = () => {
   // Trigger animation when leads count changes
   useEffect(() => {
     const currentCount = leads.length;
-    if (currentCount > previousCount && previousCount > 0) {
-      console.log('Lead count changed:', previousCount, '->', currentCount);
+    console.log('Leads count changed:', previousCount, '->', currentCount);
+    
+    if (currentCount > previousCount) {
+      console.log('Triggering animation for lead count increase');
       setAnimateCount(true);
-      const timer = setTimeout(() => setAnimateCount(false), 600);
+      const timer = setTimeout(() => {
+        console.log('Stopping animation');
+        setAnimateCount(false);
+      }, 1000);
       return () => clearTimeout(timer);
     }
+    
     setPreviousCount(currentCount);
-  }, [leads.length]); // Remove previousCount from dependencies to prevent loop
+  }, [leads.length, previousCount]);
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
@@ -95,7 +101,7 @@ export const LeadMetricsCards = () => {
           key={index}
           onClick={metric.onClick}
           className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
-            metric.animate ? 'animate-bounce' : ''
+            metric.animate ? 'animate-pulse' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
