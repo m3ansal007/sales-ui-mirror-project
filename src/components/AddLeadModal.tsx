@@ -24,6 +24,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     
     if (!formData.name.trim()) {
       return;
@@ -81,6 +82,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-white">Add New Lead</h3>
           <button 
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors"
           >
