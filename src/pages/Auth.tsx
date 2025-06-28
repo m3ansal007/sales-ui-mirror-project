@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Eye, EyeOff, User } from 'lucide-react';
+import { Target, Eye, EyeOff, User, Shield, AlertTriangle } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,7 +15,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const { signIn, signUp, user, updateUserRole } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,33 +51,29 @@ const Auth = () => {
     try {
       let result;
       if (isLogin) {
-        // For login, first authenticate then update role
-        result = await signIn(email, password);
-        if (!result.error) {
-          // Update the user's role after successful login
-          await updateUserRole(role);
-        }
+        // For login, pass the selected role to verify authorization
+        result = await signIn(email, password, role);
       } else {
-        // For signup, include role in user metadata
+        // For signup, register with the selected role
         result = await signUp(email, password, fullName, role);
       }
 
       if (result.error) {
         toast({
-          title: "Error",
+          title: "Authentication Error",
           description: result.error.message,
           variant: "destructive",
         });
       } else {
         if (!isLogin) {
           toast({
-            title: "Success",
-            description: "Account created! Please check your email to verify your account.",
+            title: "Account Created Successfully!",
+            description: `Your ${role} account has been created. Please check your email to verify your account.`,
           });
         } else {
           toast({
-            title: "Success",
-            description: `Logged in successfully as ${role}!`,
+            title: "Login Successful!",
+            description: `Welcome back! You are now logged in as ${role}.`,
           });
         }
       }
@@ -89,6 +85,28 @@ const Auth = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getRoleDescription = (selectedRole: string) => {
+    switch (selectedRole) {
+      case 'Admin':
+        return '👑 Full access to all features, team management, and system settings';
+      case 'Sales Manager':
+        return '📊 Team oversight, lead management, and performance analytics';
+      case 'Sales Associate':
+        return '💼 Individual lead management, tasks, and personal performance tracking';
+      default:
+        return '';
+    }
+  };
+
+  const getRoleIcon = (selectedRole: string) => {
+    switch (selectedRole) {
+      case 'Admin': return '👑';
+      case 'Sales Manager': return '📊';
+      case 'Sales Associate': return '💼';
+      default: return '👤';
     }
   };
 
@@ -163,10 +181,11 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* Role selection for both login and signup */}
+            {/* Role selection */}
             <div>
-              <Label htmlFor="role" className="text-slate-300">
-                {isLogin ? 'Login as' : 'Role'}
+              <Label htmlFor="role" className="text-slate-300 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                {isLogin ? 'Login as' : 'Account Type'}
               </Label>
               <div className="relative mt-1">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -177,24 +196,56 @@ const Auth = () => {
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="Admin">👑 Admin</option>
-                  <option value="Sales Manager">📊 Sales Manager</option>
-                  <option value="Sales Associate">💼 Sales Associate</option>
+                  <option value="Admin">{getRoleIcon('Admin')} Admin</option>
+                  <option value="Sales Manager">{getRoleIcon('Sales Manager')} Sales Manager</option>
+                  <option value="Sales Associate">{getRoleIcon('Sales Associate')} Sales Associate</option>
                 </select>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {role === 'Admin' && '🔧 Full access to all features and team management'}
-                {role === 'Sales Manager' && '📈 Team oversight and lead management'}
-                {role === 'Sales Associate' && '💼 Individual lead and task management'}
-              </p>
+              <div className="mt-2 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+                <p className="text-xs text-slate-300">
+                  {getRoleDescription(role)}
+                </p>
+              </div>
             </div>
+
+            {/* Security Notice for Login */}
+            {isLogin && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-300 text-sm font-medium">Security Notice</p>
+                    <p className="text-amber-200 text-xs mt-1">
+                      You can only access the role your account was registered for. 
+                      Select the role you signed up with.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Account Type Notice for Signup */}
+            {!isLogin && (
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Shield className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-blue-300 text-sm font-medium">Account Security</p>
+                    <p className="text-blue-200 text-xs mt-1">
+                      Your account will be permanently assigned to the {role} role. 
+                      This cannot be changed later for security reasons.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              {loading ? 'Loading...' : (isLogin ? `Sign In as ${role}` : 'Sign Up')}
+              {loading ? 'Processing...' : (isLogin ? `Sign In as ${role}` : `Create ${role} Account`)}
             </Button>
           </form>
 
@@ -206,14 +257,6 @@ const Auth = () => {
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
           </div>
-
-          {isLogin && (
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <p className="text-blue-300 text-sm text-center">
-                💡 Choose your role above to access the appropriate features for your position
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>

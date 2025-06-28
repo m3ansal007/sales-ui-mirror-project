@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Crown, BarChart3, Briefcase } from 'lucide-react';
+import { LogOut, User, Crown, BarChart3, Briefcase, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthButton = () => {
@@ -41,6 +41,10 @@ export const AuthButton = () => {
     }
   };
 
+  const getAuthorizedRole = () => {
+    return user?.user_metadata?.authorized_role || user?.user_metadata?.role || userRole;
+  };
+
   if (!user) return null;
 
   return (
@@ -49,9 +53,15 @@ export const AuthButton = () => {
         {getRoleIcon(userRole)}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate">{user.email}</div>
-          <div className={`text-xs ${getRoleColor(userRole)}`}>
+          <div className={`text-xs ${getRoleColor(userRole)} flex items-center gap-1`}>
+            <Shield className="w-3 h-3" />
             {userRole || 'Sales Associate'}
           </div>
+          {getAuthorizedRole() && (
+            <div className="text-xs text-slate-500">
+              Authorized: {getAuthorizedRole()}
+            </div>
+          )}
         </div>
       </div>
       <Button

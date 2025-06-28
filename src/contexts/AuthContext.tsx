@@ -8,7 +8,7 @@ interface AuthContextType {
   loading: boolean;
   userRole: string | null;
   signUp: (email: string, password: string, fullName?: string, role?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, selectedRole: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateUserRole: (role: string) => Promise<void>;
 }
@@ -81,7 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName || '',
-          role: role || 'Sales Associate'
+          role: role || 'Sales Associate',
+          authorized_role: role || 'Sales Associate' // Store the authorized role
         }
       }
     });
@@ -89,19 +90,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+  const signIn = async (email: string, password: string, selectedRole: string) => {
+    // First, authenticate with email and password
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
-    return { error };
+    if (error) {
+      return { error };
+    }
+
+    // Check if the user is authorized for the selected role
+    const userAuthorizedRole = data.user?.user_metadata?.authorized_role || data.user?.user_metadata?.role;
+    
+    if (userAuthorizedRole !== selectedRole) {
+      // Sign out the user immediately if role doesn't match
+      await supabase.auth.signOut();
+      
+      return { 
+        error: { 
+          message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.` 
+        } 
+      };
+    }
+
+    // If role matches, update the current session role
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { 
+        role: selectedRole,
+        last_login_role: selectedRole,
+        last_login_at: new Date().toISOString()
+      }
+    });
+
+    if (updateError) {
+      console.error('Error updating user role:', updateError);
+      // Don't fail login for this, just log the error
+    }
+    
+    return { error: null };
   };
 
   const updateUserRole = async (role: string) => {
     try {
+      // Check if user is authorized for this role
+      const currentUser = user;
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+
+      const authorizedRole = currentUser.user_metadata?.authorized_role || currentUser.user_metadata?.role;
+      
+      if (authorizedRole !== role) {
+        throw new Error(`You are not authorized to access the ${role} role. Your account is registered as ${authorizedRole}.`);
+      }
+
       const { error } = await supabase.auth.updateUser({
-        data: { role }
+        data: { 
+          role,
+          last_role_change: new Date().toISOString()
+        }
       });
       
       if (error) {
