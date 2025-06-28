@@ -123,11 +123,59 @@ export const useLeads = () => {
     };
   }, [user, toast]);
 
+  // Check for duplicate leads
+  const checkForDuplicate = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
+    const { name, email, phone } = leadData;
+    
+    // Find leads with the same name
+    const duplicates = leads.filter(lead => 
+      lead.name.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+
+    // Check if any of these leads also have the same email or phone
+    for (const duplicate of duplicates) {
+      const sameEmail = email && duplicate.email && 
+        email.toLowerCase().trim() === duplicate.email.toLowerCase().trim();
+      const samePhone = phone && duplicate.phone && 
+        phone.trim() === duplicate.phone.trim();
+
+      if (sameEmail && samePhone) {
+        return {
+          isDuplicate: true,
+          message: `A lead with the name "${name}", email "${email}", and phone "${phone}" already exists.`
+        };
+      } else if (sameEmail) {
+        return {
+          isDuplicate: true,
+          message: `A lead with the name "${name}" and email "${email}" already exists.`
+        };
+      } else if (samePhone) {
+        return {
+          isDuplicate: true,
+          message: `A lead with the name "${name}" and phone "${phone}" already exists.`
+        };
+      }
+    }
+
+    return { isDuplicate: false };
+  };
+
   const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) {
       toast({
         title: "Error",
         description: "You must be logged in to create leads",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Check for duplicates before creating
+    const duplicateCheck = checkForDuplicate(leadData);
+    if (duplicateCheck.isDuplicate) {
+      toast({
+        title: "Duplicate Lead",
+        description: duplicateCheck.message,
         variant: "destructive",
       });
       return false;
@@ -156,6 +204,17 @@ export const useLeads = () => {
 
       if (error) {
         console.error('Supabase error:', error);
+        
+        // Check if it's a duplicate error from the database
+        if (error.message.includes('duplicate') || error.code === '23505') {
+          toast({
+            title: "Duplicate Lead",
+            description: "A lead with this information already exists.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        
         throw error;
       }
       
@@ -183,6 +242,34 @@ export const useLeads = () => {
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     if (!user) return false;
 
+    // If updating name, email, or phone, check for duplicates
+    if (updates.name || updates.email || updates.phone) {
+      const currentLead = leads.find(lead => lead.id === id);
+      if (currentLead) {
+        const updatedLeadData = {
+          ...currentLead,
+          ...updates
+        };
+        
+        // Check for duplicates excluding the current lead
+        const otherLeads = leads.filter(lead => lead.id !== id);
+        const tempLeads = leads;
+        setLeads(otherLeads); // Temporarily exclude current lead from duplicate check
+        
+        const duplicateCheck = checkForDuplicate(updatedLeadData);
+        setLeads(tempLeads); // Restore original leads array
+        
+        if (duplicateCheck.isDuplicate) {
+          toast({
+            title: "Duplicate Lead",
+            description: duplicateCheck.message,
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+    }
+
     try {
       const { data, error } = await supabase
         .from('leads')
@@ -191,7 +278,18 @@ export const useLeads = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a duplicate error from the database
+        if (error.message.includes('duplicate') || error.code === '23505') {
+          toast({
+            title: "Duplicate Lead",
+            description: "A lead with this information already exists.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        throw error;
+      }
       
       // Manual update for immediate UI response
       setLeads(prev => prev.map(lead => 
