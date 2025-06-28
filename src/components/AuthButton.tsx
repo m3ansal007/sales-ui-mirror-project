@@ -10,16 +10,34 @@ export const AuthButton = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('AuthButton: Starting sign out...');
+      
       toast({
         title: "Signing out...",
         description: "Please wait",
       });
+      
       await signOut();
+      
+      // This toast might not show due to redirect, but it's here for completeness
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out",
+      });
+      
     } catch (error) {
+      console.error('AuthButton: Sign out error:', error);
+      
+      // Show error but still try to redirect
       toast({
         title: "Sign out completed",
         description: "You have been signed out",
       });
+      
+      // Force redirect as fallback
+      setTimeout(() => {
+        window.location.href = '/auth';
+      }, 1000);
     }
   };
 
