@@ -72,9 +72,20 @@ const Auth = () => {
             setUserActualRole(match[1]);
             setLastAttemptedRole(role);
             setShowRoleMismatchWarning(true);
+            
+            // Show a specific toast for role mismatch
+            toast({
+              title: "Role Mismatch",
+              description: `This account is registered as ${match[1]}, not ${role}. Please select the correct role.`,
+              variant: "destructive",
+            });
+            
+            // Don't show the generic error toast for role mismatch
+            return;
           }
         }
         
+        // Show generic error toast for other errors
         toast({
           title: "Authentication Error",
           description: result.error.message,
@@ -97,6 +108,7 @@ const Auth = () => {
         }
       }
     } catch (error) {
+      console.error('Authentication error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred",
@@ -118,6 +130,10 @@ const Auth = () => {
   const handleCorrectRole = () => {
     setRole(userActualRole);
     setShowRoleMismatchWarning(false);
+    toast({
+      title: "Role Updated",
+      description: `Switched to ${userActualRole}. You can now login.`,
+    });
   };
 
   const getRoleDescription = (selectedRole: string) => {
@@ -240,23 +256,33 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* Role Mismatch Warning - Only shown after failed login attempt */}
+            {/* Role Mismatch Warning - Persistent and visible */}
             {showRoleMismatchWarning && isLogin && (
-              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <div className="p-4 bg-red-500/10 border-2 border-red-500/50 rounded-lg animate-pulse">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="w-6 h-6 text-red-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-red-300 text-sm font-medium mb-2">Access Denied</p>
+                    <p className="text-red-300 text-sm font-bold mb-2">🚫 Access Denied - Wrong Role Selected</p>
+                    <p className="text-red-200 text-sm mb-3">
+                      You tried to login as <strong className="text-red-100">{lastAttemptedRole}</strong>, but this account is registered as <strong className="text-red-100">{userActualRole}</strong>.
+                    </p>
                     <p className="text-red-200 text-xs mb-3">
-                      You tried to login as <strong>{lastAttemptedRole}</strong>, but this account is registered as <strong>{userActualRole}</strong>.
+                      Please select the correct role below or contact your administrator if you believe this is an error.
                     </p>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={handleCorrectRole}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors font-medium"
                       >
-                        Switch to {userActualRole}
+                        ✅ Switch to {userActualRole}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRoleMismatchWarning(false)}
+                        className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors"
+                      >
+                        Dismiss
                       </button>
                     </div>
                   </div>
@@ -294,6 +320,9 @@ const Auth = () => {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setShowRoleMismatchWarning(false); // Clear warning when switching modes
+                setEmail('');
+                setPassword('');
+                setFullName('');
               }}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >

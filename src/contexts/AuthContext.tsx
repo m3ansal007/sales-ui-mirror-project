@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setLoading(false);
         
-        // Redirect to auth page after sign out
+        // Only redirect to auth page after sign out, not on failed login
         if (event === 'SIGNED_OUT') {
           window.location.href = '/auth';
         }
@@ -91,45 +91,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string, selectedRole: string) => {
-    // First, authenticate with email and password
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) {
-      return { error };
-    }
-
-    // Check if the user is authorized for the selected role
-    const userAuthorizedRole = data.user?.user_metadata?.authorized_role || data.user?.user_metadata?.role;
-    
-    if (userAuthorizedRole !== selectedRole) {
-      // Sign out the user immediately if role doesn't match
-      await supabase.auth.signOut();
+    try {
+      // First, authenticate with email and password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      return { 
-        error: { 
-          message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.` 
-        } 
-      };
-    }
-
-    // If role matches, update the current session role
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: { 
-        role: selectedRole,
-        last_login_role: selectedRole,
-        last_login_at: new Date().toISOString()
+      if (error) {
+        return { error };
       }
-    });
 
-    if (updateError) {
-      console.error('Error updating user role:', updateError);
-      // Don't fail login for this, just log the error
+      // Check if the user is authorized for the selected role
+      const userAuthorizedRole = data.user?.user_metadata?.authorized_role || data.user?.user_metadata?.role;
+      
+      if (userAuthorizedRole !== selectedRole) {
+        // Sign out the user immediately if role doesn't match
+        await supabase.auth.signOut();
+        
+        // Return error without causing page reload
+        return { 
+          error: { 
+            message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.` 
+          } 
+        };
+      }
+
+      // If role matches, update the current session role
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { 
+          role: selectedRole,
+          last_login_role: selectedRole,
+          last_login_at: new Date().toISOString()
+        }
+      });
+
+      if (updateError) {
+        console.error('Error updating user role:', updateError);
+        // Don't fail login for this, just log the error
+      }
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error: { message: 'An unexpected error occurred during login' } };
     }
-    
-    return { error: null };
   };
 
   const updateUserRole = async (role: string) => {
