@@ -8,15 +8,21 @@ export const LeadMetricsCards = () => {
   const navigate = useNavigate();
   const { leads } = useLeads();
   const [animateCount, setAnimateCount] = useState(false);
+  const [previousCount, setPreviousCount] = useState(0);
 
   // Trigger animation when leads count changes
   useEffect(() => {
-    if (leads.length > 0) {
+    const currentCount = leads.length;
+    if (currentCount > previousCount && currentCount > 0) {
+      console.log('Lead count changed:', previousCount, '->', currentCount);
       setAnimateCount(true);
-      const timer = setTimeout(() => setAnimateCount(false), 300);
+      const timer = setTimeout(() => setAnimateCount(false), 600);
+      setPreviousCount(currentCount);
       return () => clearTimeout(timer);
+    } else if (currentCount !== previousCount) {
+      setPreviousCount(currentCount);
     }
-  }, [leads.length]);
+  }, [leads.length, previousCount]);
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
@@ -90,12 +96,14 @@ export const LeadMetricsCards = () => {
         <div
           key={index}
           onClick={metric.onClick}
-          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-200 hover:scale-105 cursor-pointer group ${
-            metric.animate ? 'animate-pulse' : ''
+          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
+            metric.animate ? 'animate-bounce' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color}`}>
+            <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color} transition-all duration-300 ${
+              metric.animate ? 'scale-110 shadow-lg' : ''
+            }`}>
               <metric.icon className="w-5 h-5 text-white" />
             </div>
           </div>

@@ -57,7 +57,7 @@ export const useLeads = () => {
 
     // Subscribe to real-time changes
     const leadsChannel = supabase
-      .channel('leads-realtime-updates')
+      .channel('leads-changes')
       .on(
         'postgres_changes',
         {
@@ -73,6 +73,7 @@ export const useLeads = () => {
             if (prev.some(lead => lead.id === newLead.id)) {
               return prev;
             }
+            console.log('Adding new lead to state:', newLead.name);
             return [newLead, ...prev];
           });
           
