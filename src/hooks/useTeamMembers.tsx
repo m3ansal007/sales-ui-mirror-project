@@ -46,6 +46,8 @@ export const useTeamMembers = () => {
       if (teamError) throw teamError;
       setTeamMembers(teamData || []);
       
+      console.log('📊 Found team members:', teamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: tm.auth_user_id })));
+      
       // Fetch comprehensive performance data for each team member
       const performanceData: Record<string, any> = {};
       const activitiesData: Record<string, any[]> = {};
@@ -57,37 +59,68 @@ export const useTeamMembers = () => {
         const authUserId = member.auth_user_id;
         
         if (!authUserId) {
-          console.log(`⚠️ No auth_user_id found for ${member.email}, skipping performance data`);
-          performanceData[member.id] = {
-            leadsAssigned: 0,
-            leadsConverted: 0,
-            leadsNew: 0,
-            leadsContacted: 0,
-            leadsFollowUp: 0,
-            leadsLost: 0,
-            totalRevenue: 0,
-            averageDealSize: 0,
-            conversionRate: 0,
-            tasksTotal: 0,
-            tasksCompleted: 0,
-            tasksCompletionRate: 0,
-            totalCommunications: 0,
-            callsCompleted: 0,
-            emailsSent: 0,
-            totalAppointments: 0,
-            upcomingAppointments: 0,
-            completedAppointments: 0,
-            recentActivities: 0,
-            lastActivity: 'No activity',
-            performanceScore: 0,
-            authUserId: null,
-            hasAuthUser: false,
-            dataSource: 'no_auth_user'
-          };
-          continue;
+          console.log(`⚠️ No auth_user_id found for ${member.email}, attempting to sync...`);
+          
+          // Try to sync the team member
+          try {
+            const { data: syncResult, error: syncError } = await supabase.rpc('force_sync_team_member', {
+              member_email: member.email
+            });
+            
+            if (!syncError && syncResult) {
+              console.log(`🔄 Sync result for ${member.email}:`, syncResult);
+              
+              // If sync was successful, refetch the team member data
+              if (syncResult.includes('SUCCESS')) {
+                const { data: updatedMember } = await supabase
+                  .from('team_members')
+                  .select('*')
+                  .eq('id', member.id)
+                  .single();
+                
+                if (updatedMember?.auth_user_id) {
+                  member.auth_user_id = updatedMember.auth_user_id;
+                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${updatedMember.auth_user_id}`);
+                }
+              }
+            }
+          } catch (syncError) {
+            console.error(`❌ Failed to sync ${member.email}:`, syncError);
+          }
+          
+          // If still no auth_user_id, set default performance data
+          if (!member.auth_user_id) {
+            performanceData[member.id] = {
+              leadsAssigned: 0,
+              leadsConverted: 0,
+              leadsNew: 0,
+              leadsContacted: 0,
+              leadsFollowUp: 0,
+              leadsLost: 0,
+              totalRevenue: 0,
+              averageDealSize: 0,
+              conversionRate: 0,
+              tasksTotal: 0,
+              tasksCompleted: 0,
+              tasksCompletionRate: 0,
+              totalCommunications: 0,
+              callsCompleted: 0,
+              emailsSent: 0,
+              totalAppointments: 0,
+              upcomingAppointments: 0,
+              completedAppointments: 0,
+              recentActivities: 0,
+              lastActivity: 'No activity',
+              performanceScore: 0,
+              authUserId: null,
+              hasAuthUser: false,
+              dataSource: 'no_auth_user'
+            };
+            continue;
+          }
         }
 
-        console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+        console.log(`✅ Found auth user ID for ${member.email}: ${member.auth_user_id}`);
 
         // Get all leads assigned to this team member OR created by them
         let allLeads: any[] = [];
@@ -107,7 +140,7 @@ export const useTeamMembers = () => {
         const { data: userLeads, error: userLeadsError } = await supabase
           .from('leads')
           .select('*')
-          .eq('user_id', authUserId);
+          .eq('user_id', member.auth_user_id);
 
         if (!userLeadsError && userLeads) {
           // Merge and deduplicate
@@ -128,28 +161,28 @@ export const useTeamMembers = () => {
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('*')
-          .eq('user_id', authUserId);
+          .eq('user_id', member.auth_user_id);
         tasks = tasksData || [];
 
         // Get communications
         const { data: commsData } = await supabase
           .from('communications')
           .select('*')
-          .eq('user_id', authUserId);
+          .eq('user_id', member.auth_user_id);
         communications = commsData || [];
 
         // Get appointments
         const { data: apptsData } = await supabase
           .from('appointments')
           .select('*')
-          .eq('user_id', authUserId);
+          .eq('user_id', member.auth_user_id);
         appointments = apptsData || [];
 
         // Get activities (both their own and admin activities about them)
         const { data: activitiesData } = await supabase
           .from('activities')
           .select('*')
-          .or(`user_id.eq.${authUserId},user_id.eq.${user.id}`)
+          .or(`user_id.eq.${member.auth_user_id},user_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
           .limit(10);
         activities = activitiesData || [];
@@ -221,15 +254,15 @@ export const useTeamMembers = () => {
           performanceScore,
 
           // Debug info
-          authUserId,
-          hasAuthUser: !!authUserId,
+          authUserId: member.auth_user_id,
+          hasAuthUser: !!member.auth_user_id,
           dataSource: 'auth_user_id_stored'
         };
 
         console.log(`✅ Performance summary for ${member.name}:`, {
           email: member.email,
-          authUserId,
-          hasAuthUser: !!authUserId,
+          authUserId: member.auth_user_id,
+          hasAuthUser: !!member.auth_user_id,
           totalLeads: allLeads.length,
           convertedLeads: convertedLeads.length,
           totalRevenue,
@@ -360,6 +393,22 @@ export const useTeamMembers = () => {
     }
   };
 
+  // Debug function to check specific team member
+  const debugTeamMember = async (email: string) => {
+    try {
+      const { data, error } = await supabase.rpc('debug_team_member_data', {
+        member_email: email
+      });
+      
+      if (!error && data) {
+        console.log(`🔍 Debug info for ${email}:`, data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Debug error:', error);
+    }
+  };
+
   return {
     teamMembers,
     memberPerformance,
@@ -367,5 +416,6 @@ export const useTeamMembers = () => {
     loading,
     refetch: fetchTeamMembers,
     deleteTeamMember,
+    debugTeamMember,
   };
 };
