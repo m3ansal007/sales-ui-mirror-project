@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,22 +61,39 @@ export const useLeads = () => {
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
-        const { data: teamMember } = await supabase
+        const teamMemberResult = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
           .single();
 
-        if (teamMember) {
-          // Split the query to avoid complex type inference
-          const orFilter = `user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`;
-          const result = await supabase
-            .from('leads')
-            .select('*')
-            .or(orFilter)
-            .order('created_at', { ascending: false });
-          data = result.data;
-          error = result.error;
+        if (teamMemberResult.data) {
+          // Use two separate queries and combine results to avoid complex type inference
+          const [ownLeadsResult, assignedLeadsResult] = await Promise.all([
+            supabase
+              .from('leads')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false }),
+            supabase
+              .from('leads')
+              .select('*')
+              .eq('assigned_team_member_id', teamMemberResult.data.id)
+              .order('created_at', { ascending: false })
+          ]);
+
+          if (ownLeadsResult.error) {
+            error = ownLeadsResult.error;
+          } else if (assignedLeadsResult.error) {
+            error = assignedLeadsResult.error;
+          } else {
+            // Combine and deduplicate results
+            const combinedLeads = [...(ownLeadsResult.data || []), ...(assignedLeadsResult.data || [])];
+            const uniqueLeads = combinedLeads.filter((lead, index, self) => 
+              index === self.findIndex(l => l.id === lead.id)
+            );
+            data = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
         } else {
           // Fallback to just their own leads
           const result = await supabase
