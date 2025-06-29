@@ -21,6 +21,19 @@ export interface Lead {
   user_id: string;
 }
 
+// Simplified type for creating leads
+interface CreateLeadData {
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  source?: string;
+  status: string;
+  assigned_team_member_id?: string;
+  notes?: string;
+  value?: number;
+}
+
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +162,7 @@ export const useLeads = () => {
   }, [user, userRole, toast]);
 
   // Check for duplicate leads
-  const checkForDuplicate = (leadData: Partial<Lead>) => {
+  const checkForDuplicate = (leadData: CreateLeadData) => {
     const { name, email, phone } = leadData;
     
     if (!name) return { isDuplicate: false };
@@ -187,7 +200,7 @@ export const useLeads = () => {
     return { isDuplicate: false };
   };
 
-  const createLead = async (leadData: Partial<Lead>) => {
+  const createLead = async (leadData: CreateLeadData) => {
     if (!user) {
       toast({
         title: "Error",
