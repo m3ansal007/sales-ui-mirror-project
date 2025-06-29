@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,7 +70,8 @@ export const useTeamMembers = () => {
             .rpc('get_user_by_email', { user_email: member.email });
 
           if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-            authUserId = rpcData[0].id;
+            const typedData = rpcData as RpcResponse[];
+            authUserId = typedData[0].id;
             console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
           } else {
             console.log(`⚠️ No auth user found for ${member.email}:`, rpcError);
@@ -302,48 +304,54 @@ export const useTeamMembers = () => {
     // Subscribe to all relevant table changes
     const leadsChannel = supabase
       .channel('team-performance-leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload: RealtimePayload) => {
-        console.log('📋 Lead change detected:', payload.eventType, payload.new?.name || payload.old?.name);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('📋 Lead change detected:', typedPayload.eventType, typedPayload.new?.name || typedPayload.old?.name);
         setTimeout(fetchTeamMembers, 1000); // Delay to ensure data consistency
       })
       .subscribe();
 
     const tasksChannel = supabase
       .channel('team-performance-tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: RealtimePayload) => {
-        console.log('📋 Task change detected:', payload.eventType);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('📋 Task change detected:', typedPayload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
     const communicationsChannel = supabase
       .channel('team-performance-communications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload: RealtimePayload) => {
-        console.log('📞 Communication change detected:', payload.eventType);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('📞 Communication change detected:', typedPayload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
     const appointmentsChannel = supabase
       .channel('team-performance-appointments')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload: RealtimePayload) => {
-        console.log('📅 Appointment change detected:', payload.eventType);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('📅 Appointment change detected:', typedPayload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
     const activitiesChannel = supabase
       .channel('team-performance-activities')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload: RealtimePayload) => {
-        console.log('🎯 Activity change detected:', payload.eventType);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('🎯 Activity change detected:', typedPayload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
     const teamChannel = supabase
       .channel('team-members-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload: RealtimePayload) => {
-        console.log('👥 Team member change detected:', payload.eventType);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload: any) => {
+        const typedPayload = payload as RealtimePayload;
+        console.log('👥 Team member change detected:', typedPayload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();

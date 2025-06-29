@@ -20,7 +20,7 @@ const AllLeads = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const selectAllCheckboxRef = useRef<HTMLButtonElement>(null);
 
   // Handle URL parameters for status filtering
   useEffect(() => {
