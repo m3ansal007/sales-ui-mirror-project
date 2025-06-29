@@ -29,12 +29,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
+        // If we're in the middle of signing out, ignore state changes temporarily
+        if (isSigningOut && event === 'SIGNED_IN') {
+          console.log('Ignoring sign in event during sign out process');
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -50,27 +58,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         
         // Only redirect to auth page after sign out, not on failed login
-        if (event === 'SIGNED_OUT') {
-          window.location.href = '/auth';
+        if (event === 'SIGNED_OUT' && !isSigningOut) {
+          console.log('User signed out, redirecting to auth page');
+          setTimeout(() => {
+            window.location.href = '/auth';
+          }, 100);
         }
       }
     );
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
-        setUserRole(role);
+      if (!isSigningOut) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
+          setUserRole(role);
+        }
       }
       
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isSigningOut]);
 
   const checkUserRole = async (email: string) => {
     try {
@@ -222,28 +235,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       console.log('Starting sign out process...');
+      setIsSigningOut(true);
       
       // Clear local state immediately to prevent UI issues
       setUser(null);
       setSession(null);
       setUserRole(null);
       
+      // Clear any stored session data in localStorage
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-uuymgkqkvwixukutvabw-auth-token');
+      
       // Attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({
+        scope: 'global' // This ensures all sessions are cleared
+      });
       
       if (error) {
-        console.error('Sign out error:', error);
-        // Even if there's an error, we've already cleared local state
-        // This handles cases where the session might be stale
+        console.error('Sign out error from Supabase:', error);
+        // Even if there's an error, continue with cleanup
       } else {
-        console.log('Sign out successful');
+        console.log('Supabase sign out successful');
       }
       
-      // Force redirect to auth page regardless of error
-      // This ensures user is logged out from the UI perspective
+      // Force clear the session by refreshing the page after a short delay
       setTimeout(() => {
+        setIsSigningOut(false);
         window.location.href = '/auth';
-      }, 100);
+      }, 500);
       
     } catch (error) {
       console.error('Unexpected sign out error:', error);
@@ -252,6 +271,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setIsSigningOut(false);
+      
+      // Clear localStorage as fallback
+      localStorage.clear();
       
       setTimeout(() => {
         window.location.href = '/auth';

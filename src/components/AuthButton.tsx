@@ -19,16 +19,9 @@ export const AuthButton = () => {
       
       await signOut();
       
-      // This toast might not show due to redirect, but it's here for completeness
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out",
-      });
-      
     } catch (error) {
       console.error('AuthButton: Sign out error:', error);
       
-      // Show error but still try to redirect
       toast({
         title: "Sign out completed",
         description: "You have been signed out",
@@ -59,8 +52,8 @@ export const AuthButton = () => {
     }
   };
 
-  const getAuthorizedRole = () => {
-    return user?.user_metadata?.authorized_role || user?.user_metadata?.role || userRole;
+  const getAuthorizedRole = (user: any) => {
+    return user?.user_metadata?.authorized_role || user?.user_metadata?.role;
   };
 
   if (!user) return null;
@@ -93,4 +86,26 @@ export const AuthButton = () => {
       </Button>
     </div>
   );
+};
+
+const getRoleIcon = (role: string | null) => {
+  switch (role) {
+    case 'Admin': return <Crown className="w-4 h-4 text-purple-400" />;
+    case 'Sales Manager': return <BarChart3 className="w-4 h-4 text-blue-400" />;
+    case 'Sales Associate': return <Briefcase className="w-4 h-4 text-green-400" />;
+    default: return <User className="w-4 h-4" />;
+  }
+};
+
+const getRoleColor = (role: string | null) => {
+  switch (role) {
+    case 'Admin': return 'text-purple-400';
+    case 'Sales Manager': return 'text-blue-400';
+    case 'Sales Associate': return 'text-green-400';
+    default: return 'text-slate-400';
+  }
+};
+
+const getAuthorizedRole = (user: any) => {
+  return user?.user_metadata?.authorized_role || user?.user_metadata?.role;
 };
