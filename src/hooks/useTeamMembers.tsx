@@ -62,41 +62,22 @@ export const useTeamMembers = () => {
       for (const member of teamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
-        // Step 1: Get the auth user ID for this team member's email using proper RPC call
+        // Step 1: Get the auth user ID for this team member's email using profiles table
         let authUserId: string | null = null;
         
         try {
-          // Call RPC without type assertion that causes conflicts
-          const rpcResult = await supabase.rpc('get_user_by_email', { 
-            user_email: member.email 
-          });
-
-          if (!rpcResult.error && rpcResult.data) {
-            // Handle both array and single object responses
-            if (Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
-              const userData = rpcResult.data[0] as GetUserByEmailResponse;
-              authUserId = userData?.id;
-            } else if (rpcResult.data && typeof rpcResult.data === 'object' && 'id' in rpcResult.data) {
-              const userData = rpcResult.data as GetUserByEmailResponse;
-              authUserId = userData.id;
-            }
-            
-            if (authUserId) {
-              console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
-            }
+          // Query profiles table directly to find user by email
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', member.email)
+            .single();
+          
+          if (!profileError && profileData) {
+            authUserId = profileData.id;
+            console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
           } else {
-            console.log(`⚠️ No auth user found for ${member.email}:`, rpcResult.error);
-            // Try to find user in profiles table as fallback
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('email', member.email)
-              .single();
-            
-            if (profileData) {
-              authUserId = profileData.id;
-              console.log(`✅ Found user in profiles table for ${member.email}: ${authUserId}`);
-            }
+            console.log(`⚠️ No auth user found for ${member.email}:`, profileError);
           }
         } catch (error) {
           console.log(`❌ Error getting auth user for ${member.email}:`, error);
