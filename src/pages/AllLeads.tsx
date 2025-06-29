@@ -20,7 +20,7 @@ const AllLeads = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const selectAllCheckboxRef = useRef<React.ElementRef<typeof Checkbox>>(null);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Handle URL parameters for status filtering
   useEffect(() => {
@@ -144,11 +144,7 @@ const AllLeads = () => {
   // Update indeterminate state
   useEffect(() => {
     if (selectAllCheckboxRef.current) {
-      // @ts-ignore - accessing internal checkbox element
-      const checkboxElement = selectAllCheckboxRef.current.querySelector('button');
-      if (checkboxElement) {
-        checkboxElement.indeterminate = isSomeSelected;
-      }
+      selectAllCheckboxRef.current.indeterminate = isSomeSelected;
     }
   }, [isSomeSelected]);
 
