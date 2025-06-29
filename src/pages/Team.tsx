@@ -52,6 +52,13 @@ const Team = () => {
     return 'text-red-400';
   };
 
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000) {
+      return `₹${(amount / 1000).toFixed(1)}k`;
+    }
+    return `₹${amount.toLocaleString('en-IN')}`;
+  };
+
   // Check if user has permission to manage team
   const canManageTeam = userRole === 'Admin' || userRole === 'Sales Manager';
 
@@ -80,7 +87,7 @@ const Team = () => {
         <div className="p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Team & Roles</h1>
-            <p className="text-slate-400">Manage your sales team and track comprehensive performance metrics</p>
+            <p className="text-slate-400">Manage your sales team and track comprehensive performance metrics (Currency: Indian Rupees ₹)</p>
             {!canManageTeam && (
               <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <p className="text-yellow-300 text-sm">
@@ -131,12 +138,9 @@ const Team = () => {
                   </div>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-sm mb-1">Total Revenue</p>
+                  <p className="text-slate-400 text-sm mb-1">Total Revenue (INR)</p>
                   <p className="text-white text-2xl font-bold mb-1">
-                    ₹{totalTeamStats.totalRevenue >= 1000 
-                      ? `${(totalTeamStats.totalRevenue / 1000).toFixed(1)}k` 
-                      : totalTeamStats.totalRevenue.toLocaleString()
-                    }
+                    {formatCurrency(totalTeamStats.totalRevenue)}
                   </p>
                   <p className="text-purple-400 text-xs">Team generated revenue</p>
                 </div>
@@ -355,12 +359,9 @@ const Team = () => {
 
                     <div className="grid grid-cols-2 gap-4 pt-3">
                       <div>
-                        <p className="text-slate-400 text-xs">Revenue</p>
+                        <p className="text-slate-400 text-xs">Revenue (INR)</p>
                         <p className="text-green-400 font-medium">
-                          ₹{performance.totalRevenue >= 1000 
-                            ? `${(performance.totalRevenue / 1000).toFixed(1)}k` 
-                            : performance.totalRevenue.toLocaleString()
-                          }
+                          {formatCurrency(performance.totalRevenue)}
                         </p>
                       </div>
                       <div>
@@ -419,11 +420,11 @@ const Team = () => {
 
                         {/* Performance Insights */}
                         <div className="bg-slate-800/50 p-3 rounded-lg">
-                          <h4 className="text-white font-medium mb-2">Performance Insights</h4>
+                          <h4 className="text-white font-medium mb-2">Performance Insights (INR)</h4>
                           <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
                               <p className="text-slate-400">Avg Deal Size</p>
-                              <p className="text-white">₹{performance.averageDealSize.toLocaleString()}</p>
+                              <p className="text-white">{formatCurrency(performance.averageDealSize)}</p>
                             </div>
                             <div>
                               <p className="text-slate-400">Activities Score</p>

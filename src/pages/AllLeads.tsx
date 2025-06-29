@@ -138,6 +138,13 @@ const AllLeads = () => {
     }
   };
 
+  const formatCurrency = (value: number) => {
+    if (value >= 1000) {
+      return `₹${(value / 1000).toFixed(1)}k`;
+    }
+    return `₹${value.toLocaleString('en-IN')}`;
+  };
+
   const isAllSelected = filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length;
   const isSomeSelected = selectedLeads.length > 0 && selectedLeads.length < filteredLeads.length;
 
@@ -161,7 +168,7 @@ const AllLeads = () => {
         <div className="p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">All Leads</h1>
-            <p className="text-slate-400">Manage and track all your sales leads</p>
+            <p className="text-slate-400">Manage and track all your sales leads (Currency: Indian Rupees ₹)</p>
           </div>
 
           <div className="flex justify-between items-center mb-6">
@@ -220,7 +227,7 @@ const AllLeads = () => {
                     <TableHead className="text-slate-300">Contact</TableHead>
                     <TableHead className="text-slate-300">Source</TableHead>
                     <TableHead className="text-slate-300">Status</TableHead>
-                    <TableHead className="text-slate-300">Value</TableHead>
+                    <TableHead className="text-slate-300">Value (INR)</TableHead>
                     <TableHead className="text-slate-300">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -258,7 +265,7 @@ const AllLeads = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-slate-300">
-                        {lead.value ? `₹${lead.value.toLocaleString()}` : '-'}
+                        {lead.value ? formatCurrency(lead.value) : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

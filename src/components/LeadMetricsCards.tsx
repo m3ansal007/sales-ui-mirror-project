@@ -43,6 +43,18 @@ export const LeadMetricsCards = () => {
     // Calculate upcoming meetings (mock for now since we don't have calendar implemented)
     const upcomingMeetings = Math.floor(totalLeads * 0.1); // Rough estimate
 
+    // Calculate total revenue in INR
+    const totalRevenue = leads
+      .filter(lead => lead.status === 'Converted' && lead.value)
+      .reduce((sum, lead) => sum + (lead.value || 0), 0);
+
+    const formatCurrency = (amount: number) => {
+      if (amount >= 1000) {
+        return `₹${(amount / 1000).toFixed(1)}k`;
+      }
+      return `₹${amount.toLocaleString('en-IN')}`;
+    };
+
     return [
       {
         title: "Total Leads",
@@ -76,9 +88,9 @@ export const LeadMetricsCards = () => {
         onClick: () => navigate("/tasks")
       },
       {
-        title: "Converted Leads",
-        value: convertedLeads.toString(),
-        change: convertedLeads === 0 ? "No conversions yet" : `${Math.round((convertedLeads/totalLeads) * 100)}% conversion rate`,
+        title: "Revenue (INR)",
+        value: formatCurrency(totalRevenue),
+        change: convertedLeads === 0 ? "No conversions yet" : `${convertedLeads} conversions`,
         icon: TrendingUp,
         color: "from-green-500 to-green-600",
         bgColor: "bg-green-500/10",

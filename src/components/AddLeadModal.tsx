@@ -216,7 +216,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
                 value={formData.value}
                 onChange={handleInputChange}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="Enter lead value"
+                placeholder="Enter lead value in INR"
                 min="0"
                 step="0.01"
                 disabled={isSubmitting}
