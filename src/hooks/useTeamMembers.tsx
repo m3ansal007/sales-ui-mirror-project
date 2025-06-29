@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,9 +20,10 @@ interface AuthUser {
   email: string;
 }
 
-interface RpcResponse {
+// Properly type the RPC response
+interface GetUserByEmailResponse {
   id: string;
-  email: string;
+  email?: string;
 }
 
 interface RealtimePayload {
@@ -67,14 +67,16 @@ export const useTeamMembers = () => {
         
         try {
           const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_user_by_email', { user_email: member.email }) as { data: any, error: any };
+            .rpc('get_user_by_email', { user_email: member.email });
 
           if (!rpcError && rpcData) {
             // Handle both array and single object responses
             if (Array.isArray(rpcData) && rpcData.length > 0) {
-              authUserId = rpcData[0]?.id;
+              const userData = rpcData[0] as GetUserByEmailResponse;
+              authUserId = userData?.id;
             } else if (rpcData && typeof rpcData === 'object' && 'id' in rpcData) {
-              authUserId = rpcData.id;
+              const userData = rpcData as GetUserByEmailResponse;
+              authUserId = userData.id;
             }
             
             if (authUserId) {
