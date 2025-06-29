@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,14 +67,14 @@ export const useTeamMembers = () => {
         
         try {
           const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_user_by_email', { user_email: member.email });
+            .rpc('get_user_by_email', { user_email: member.email }) as { data: any, error: any };
 
           if (!rpcError && rpcData) {
             // Handle both array and single object responses
             if (Array.isArray(rpcData) && rpcData.length > 0) {
-              authUserId = rpcData[0].id;
+              authUserId = rpcData[0]?.id;
             } else if (rpcData && typeof rpcData === 'object' && 'id' in rpcData) {
-              authUserId = (rpcData as any).id;
+              authUserId = rpcData.id;
             }
             
             if (authUserId) {
