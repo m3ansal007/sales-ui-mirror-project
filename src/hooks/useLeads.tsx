@@ -43,20 +43,19 @@ export const useLeads = () => {
     if (!user) return;
     
     try {
-      // Use explicit typing to avoid deep type inference
-      let data: any[] | null = null;
-      let error: any = null;
+      let allLeads: Lead[] = [];
       
       // If user is admin, show all leads (including those created by team members)
       // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         // Admin sees all leads in the system
-        const result = await supabase
+        const { data, error } = await supabase
           .from('leads')
           .select('*')
           .order('created_at', { ascending: false });
-        data = result.data;
-        error = result.error;
+        
+        if (error) throw error;
+        allLeads = data as Lead[];
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
@@ -67,47 +66,44 @@ export const useLeads = () => {
           .limit(1);
 
         if (teamMemberData && teamMemberData.length > 0) {
-          // Use two separate queries and combine results to avoid complex type inference
-          const [ownLeadsResult, assignedLeadsResult] = await Promise.all([
-            supabase
-              .from('leads')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false }),
-            supabase
-              .from('leads')
-              .select('*')
-              .eq('assigned_team_member_id', teamMemberData[0].id)
-              .order('created_at', { ascending: false })
-          ]);
-
-          if (ownLeadsResult.error) {
-            error = ownLeadsResult.error;
-          } else if (assignedLeadsResult.error) {
-            error = assignedLeadsResult.error;
-          } else {
-            // Combine and deduplicate results
-            const combinedLeads = [...(ownLeadsResult.data || []), ...(assignedLeadsResult.data || [])];
-            const uniqueLeads = combinedLeads.filter((lead, index, self) => 
-              index === self.findIndex(l => l.id === lead.id)
-            );
-            data = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          }
-        } else {
-          // Fallback to just their own leads
-          const result = await supabase
+          // Get own leads
+          const { data: ownLeads, error: ownError } = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
-          data = result.data;
-          error = result.error;
+
+          // Get assigned leads
+          const { data: assignedLeads, error: assignedError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('assigned_team_member_id', teamMemberData[0].id)
+            .order('created_at', { ascending: false });
+
+          if (ownError) throw ownError;
+          if (assignedError) throw assignedError;
+
+          // Combine and deduplicate results
+          const combinedLeads = [...(ownLeads || []), ...(assignedLeads || [])];
+          const uniqueLeads = combinedLeads.filter((lead, index, self) => 
+            index === self.findIndex(l => l.id === lead.id)
+          );
+          allLeads = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        } else {
+          // Fallback to just their own leads
+          const { data, error } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          allLeads = data as Lead[];
         }
       }
 
-      if (error) throw error;
-      console.log('Fetched leads:', data?.length || 0);
-      setLeads((data || []) as Lead[]);
+      console.log('Fetched leads:', allLeads?.length || 0);
+      setLeads(allLeads || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
       toast({

@@ -176,7 +176,6 @@ const AssignLeads = () => {
                     <TableHead className="text-slate-300 w-12">
                       <Checkbox
                         checked={isAllSelected}
-                        indeterminate={isSomeSelected}
                         onCheckedChange={handleSelectAll}
                         className="border-slate-600"
                       />
@@ -223,7 +222,7 @@ const AssignLeads = () => {
                             <SelectValue placeholder="Select member" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Unassigned</SelectItem>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
                             {teamMembers.map((member) => (
                               <SelectItem key={member.id} value={member.id}>
                                 {member.name}
