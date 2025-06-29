@@ -18,8 +18,9 @@ export interface TeamMember {
 export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [memberPerformance, setMemberPerformance] = useState<Record<string, any>>({});
+  const [memberActivities, setMemberActivities] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
 
   const fetchTeamMembers = async () => {
@@ -35,86 +36,177 @@ export const useTeamMembers = () => {
       if (teamError) throw teamError;
       setTeamMembers(teamData || []);
       
-      // Fetch performance data for each team member
+      // Fetch comprehensive performance and activity data for each team member
       const performanceData: Record<string, any> = {};
+      const activitiesData: Record<string, any[]> = {};
       
-      // Get all leads to analyze performance
-      const { data: allLeads, error: leadsError } = await supabase
-        .from('leads')
-        .select('*');
-
-      if (leadsError) {
-        console.error('Error fetching leads for performance:', leadsError);
-      }
-
       for (const member of teamData || []) {
-        // Method 1: Try to find leads assigned to this team member by email
-        const leadsByEmail = (allLeads || []).filter(lead => 
-          lead.assigned_to === member.email || 
-          lead.user_id === member.user_id
-        );
-
-        // Method 2: Try to find leads created by users with the same email as team member
-        const { data: userLeads, error: userLeadsError } = await supabase
-          .from('leads')
-          .select(`
-            *,
-            profiles!inner(email)
-          `)
-          .eq('profiles.email', member.email);
-
-        if (userLeadsError) {
-          console.log('Could not fetch user leads for', member.email, userLeadsError);
-        }
-
-        // Method 3: Direct query by team member assignment
-        const { data: assignedLeads, error: assignedError } = await supabase
+        console.log(`Fetching data for team member: ${member.name} (${member.email})`);
+        
+        // Method 1: Get all leads associated with this team member
+        const { data: memberLeads, error: leadsError } = await supabase
           .from('leads')
           .select('*')
-          .eq('assigned_team_member_id', member.id);
+          .or(`assigned_to.eq.${member.email},assigned_team_member_id.eq.${member.id}`);
 
-        if (assignedError) {
-          console.log('Could not fetch assigned leads for', member.id, assignedError);
+        if (leadsError) {
+          console.error('Error fetching member leads:', leadsError);
         }
 
-        // Combine all methods to get the most comprehensive view
+        // Method 2: Get leads created by users with matching email
+        const { data: usersByEmail, error: usersError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', member.email);
+
+        let userCreatedLeads: any[] = [];
+        if (!usersError && usersByEmail && usersByEmail.length > 0) {
+          const userIds = usersByEmail.map(u => u.id);
+          const { data: userLeads, error: userLeadsError } = await supabase
+            .from('leads')
+            .select('*')
+            .in('user_id', userIds);
+
+          if (!userLeadsError) {
+            userCreatedLeads = userLeads || [];
+          }
+        }
+
+        // Method 3: Get leads from auth.users table matching email
+        const { data: authUsers, error: authError } = await supabase
+          .rpc('get_user_by_email', { user_email: member.email })
+          .single();
+
+        let authUserLeads: any[] = [];
+        if (!authError && authUsers) {
+          const { data: authLeads, error: authLeadsError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('user_id', authUsers.id);
+
+          if (!authLeadsError) {
+            authUserLeads = authLeads || [];
+          }
+        }
+
+        // Combine all leads and remove duplicates
         const allMemberLeads = [
-          ...leadsByEmail,
-          ...(userLeads || []),
-          ...(assignedLeads || [])
+          ...(memberLeads || []),
+          ...userCreatedLeads,
+          ...authUserLeads
         ];
 
-        // Remove duplicates based on lead ID
         const uniqueLeads = allMemberLeads.filter((lead, index, self) => 
           index === self.findIndex(l => l.id === lead.id)
         );
 
-        console.log(`Performance data for ${member.name}:`, {
-          email: member.email,
-          leadsByEmail: leadsByEmail.length,
-          userLeads: (userLeads || []).length,
-          assignedLeads: (assignedLeads || []).length,
-          uniqueLeads: uniqueLeads.length,
-          convertedLeads: uniqueLeads.filter(lead => lead.status === 'Converted').length
-        });
+        // Get tasks for this team member
+        const { data: memberTasks, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .or(`user_id.eq.${authUsers?.id || 'none'}`);
+
+        const tasks = memberTasks || [];
+        const completedTasks = tasks.filter(task => task.status === 'Completed');
+
+        // Get communications for this team member
+        const { data: memberComms, error: commsError } = await supabase
+          .from('communications')
+          .select('*')
+          .or(`user_id.eq.${authUsers?.id || 'none'}`);
+
+        const communications = memberComms || [];
+
+        // Get appointments for this team member
+        const { data: memberAppts, error: apptsError } = await supabase
+          .from('appointments')
+          .select('*')
+          .or(`user_id.eq.${authUsers?.id || 'none'}`);
+
+        const appointments = memberAppts || [];
+
+        // Get activities for this team member
+        const { data: memberActivitiesData, error: activitiesError } = await supabase
+          .from('activities')
+          .select('*')
+          .or(`user_id.eq.${authUsers?.id || 'none'}`)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        activitiesData[member.id] = memberActivitiesData || [];
+
+        // Calculate comprehensive performance metrics
+        const totalRevenue = uniqueLeads
+          .filter(lead => lead.status === 'Converted' && lead.value)
+          .reduce((sum, lead) => sum + (lead.value || 0), 0);
+
+        const conversionRate = uniqueLeads.length > 0 
+          ? Math.round((uniqueLeads.filter(lead => lead.status === 'Converted').length / uniqueLeads.length) * 100)
+          : 0;
 
         performanceData[member.id] = {
+          // Lead metrics
           leadsAssigned: uniqueLeads.length,
           leadsConverted: uniqueLeads.filter(lead => lead.status === 'Converted').length,
           leadsNew: uniqueLeads.filter(lead => lead.status === 'New').length,
           leadsContacted: uniqueLeads.filter(lead => lead.status === 'Contacted').length,
           leadsFollowUp: uniqueLeads.filter(lead => lead.status === 'Follow-Up').length,
           leadsLost: uniqueLeads.filter(lead => lead.status === 'Lost').length,
-          totalRevenue: uniqueLeads
-            .filter(lead => lead.status === 'Converted' && lead.value)
-            .reduce((sum, lead) => sum + (lead.value || 0), 0),
-          tasksCompleted: 0, // Placeholder for tasks
-          tasksTotal: 0 // Placeholder for tasks
+          
+          // Financial metrics
+          totalRevenue,
+          averageDealSize: uniqueLeads.filter(lead => lead.status === 'Converted').length > 0 
+            ? Math.round(totalRevenue / uniqueLeads.filter(lead => lead.status === 'Converted').length)
+            : 0,
+          conversionRate,
+          
+          // Activity metrics
+          tasksTotal: tasks.length,
+          tasksCompleted: completedTasks.length,
+          tasksCompletionRate: tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0,
+          
+          // Communication metrics
+          totalCommunications: communications.length,
+          callsCompleted: communications.filter(comm => comm.type === 'call' && comm.status === 'Completed').length,
+          emailsSent: communications.filter(comm => comm.type === 'email' && comm.status === 'Sent').length,
+          
+          // Appointment metrics
+          totalAppointments: appointments.length,
+          upcomingAppointments: appointments.filter(apt => new Date(apt.start_time) > new Date()).length,
+          completedAppointments: appointments.filter(apt => apt.status === 'Completed').length,
+          
+          // Recent activity count
+          recentActivities: (memberActivitiesData || []).length,
+          
+          // Last activity date
+          lastActivity: (memberActivitiesData || []).length > 0 
+            ? new Date((memberActivitiesData || [])[0].created_at).toLocaleDateString()
+            : 'No activity',
+            
+          // Performance score (weighted calculation)
+          performanceScore: Math.round(
+            (conversionRate * 0.4) + 
+            (tasks.length > 0 ? (completedTasks.length / tasks.length) * 100 * 0.3 : 0) +
+            (communications.length * 2) + 
+            (appointments.length * 1.5)
+          )
         };
+
+        console.log(`Performance data for ${member.name}:`, {
+          email: member.email,
+          totalLeads: uniqueLeads.length,
+          convertedLeads: uniqueLeads.filter(lead => lead.status === 'Converted').length,
+          totalRevenue,
+          tasks: tasks.length,
+          communications: communications.length,
+          appointments: appointments.length,
+          activities: (memberActivitiesData || []).length
+        });
       }
       
       setMemberPerformance(performanceData);
-      console.log('Final performance data:', performanceData);
+      setMemberActivities(activitiesData);
+      console.log('Final comprehensive performance data:', performanceData);
       
     } catch (error) {
       console.error('Error fetching team members:', error);
@@ -128,53 +220,67 @@ export const useTeamMembers = () => {
     }
   };
 
-  // Set up real-time subscription for leads to update performance metrics
+  // Set up comprehensive real-time subscriptions
   useEffect(() => {
     if (!user) return;
 
     fetchTeamMembers();
 
-    // Subscribe to real-time changes on leads to update performance
+    // Subscribe to all relevant table changes
     const leadsChannel = supabase
       .channel('team-performance-leads')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'leads'
-        },
-        (payload) => {
-          console.log('Lead change detected for team performance:', payload);
-          // Refetch team members and performance data when leads change
-          setTimeout(() => {
-            fetchTeamMembers();
-          }, 100);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        console.log('Lead change detected, refreshing team performance');
+        setTimeout(fetchTeamMembers, 100);
+      })
       .subscribe();
 
-    // Also subscribe to team_members changes
+    const tasksChannel = supabase
+      .channel('team-performance-tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        console.log('Task change detected, refreshing team performance');
+        setTimeout(fetchTeamMembers, 100);
+      })
+      .subscribe();
+
+    const communicationsChannel = supabase
+      .channel('team-performance-communications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, () => {
+        console.log('Communication change detected, refreshing team performance');
+        setTimeout(fetchTeamMembers, 100);
+      })
+      .subscribe();
+
+    const appointmentsChannel = supabase
+      .channel('team-performance-appointments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        console.log('Appointment change detected, refreshing team performance');
+        setTimeout(fetchTeamMembers, 100);
+      })
+      .subscribe();
+
+    const activitiesChannel = supabase
+      .channel('team-performance-activities')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, () => {
+        console.log('Activity change detected, refreshing team performance');
+        setTimeout(fetchTeamMembers, 100);
+      })
+      .subscribe();
+
     const teamChannel = supabase
       .channel('team-members-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'team_members'
-        },
-        (payload) => {
-          console.log('Team member change detected:', payload);
-          setTimeout(() => {
-            fetchTeamMembers();
-          }, 100);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        console.log('Team member change detected, refreshing team data');
+        setTimeout(fetchTeamMembers, 100);
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(leadsChannel);
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(communicationsChannel);
+      supabase.removeChannel(appointmentsChannel);
+      supabase.removeChannel(activitiesChannel);
       supabase.removeChannel(teamChannel);
     };
   }, [user]);
@@ -210,6 +316,7 @@ export const useTeamMembers = () => {
   return {
     teamMembers,
     memberPerformance,
+    memberActivities,
     loading,
     refetch: fetchTeamMembers,
     deleteTeamMember,

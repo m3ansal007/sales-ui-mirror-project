@@ -1,4 +1,4 @@
-import { Users, Plus, Mail, Phone, Trash2, UserCheck, UserX, TrendingUp, Target } from "lucide-react";
+import { Users, Plus, Mail, Phone, Trash2, UserCheck, UserX, TrendingUp, Target, Activity, Calendar, MessageSquare, CheckCircle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
 import AddTeamMemberModal from "@/components/AddTeamMemberModal";
@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 const Team = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [filter, setFilter] = useState('All Members');
-  const { teamMembers, memberPerformance, loading, refetch, deleteTeamMember } = useTeamMembers();
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const { teamMembers, memberPerformance, memberActivities, loading, refetch, deleteTeamMember } = useTeamMembers();
   const { userRole } = useAuth();
 
   const filteredMembers = teamMembers.filter(member => {
@@ -44,6 +45,13 @@ const Team = () => {
     }
   };
 
+  const getPerformanceColor = (score: number) => {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 60) return 'text-yellow-400';
+    if (score >= 40) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
   // Check if user has permission to manage team
   const canManageTeam = userRole === 'Admin' || userRole === 'Sales Manager';
 
@@ -51,8 +59,18 @@ const Team = () => {
   const totalTeamStats = Object.values(memberPerformance).reduce((acc, perf) => ({
     totalLeads: acc.totalLeads + (perf.leadsAssigned || 0),
     totalConverted: acc.totalConverted + (perf.leadsConverted || 0),
-    totalRevenue: acc.totalRevenue + (perf.totalRevenue || 0)
-  }), { totalLeads: 0, totalConverted: 0, totalRevenue: 0 });
+    totalRevenue: acc.totalRevenue + (perf.totalRevenue || 0),
+    totalTasks: acc.totalTasks + (perf.tasksTotal || 0),
+    totalCommunications: acc.totalCommunications + (perf.totalCommunications || 0),
+    totalAppointments: acc.totalAppointments + (perf.totalAppointments || 0)
+  }), { 
+    totalLeads: 0, 
+    totalConverted: 0, 
+    totalRevenue: 0, 
+    totalTasks: 0, 
+    totalCommunications: 0, 
+    totalAppointments: 0 
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -62,7 +80,7 @@ const Team = () => {
         <div className="p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Team & Roles</h1>
-            <p className="text-slate-400">Manage your sales team and track performance</p>
+            <p className="text-slate-400">Manage your sales team and track comprehensive performance metrics</p>
             {!canManageTeam && (
               <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                 <p className="text-yellow-300 text-sm">
@@ -72,9 +90,9 @@ const Team = () => {
             )}
           </div>
 
-          {/* Team Performance Overview */}
+          {/* Comprehensive Team Performance Overview */}
           {teamMembers.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
@@ -121,6 +139,21 @@ const Team = () => {
                     }
                   </p>
                   <p className="text-purple-400 text-xs">Team generated revenue</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600">
+                    <Activity className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Total Activities</p>
+                  <p className="text-white text-2xl font-bold mb-1">
+                    {totalTeamStats.totalTasks + totalTeamStats.totalCommunications + totalTeamStats.totalAppointments}
+                  </p>
+                  <p className="text-orange-400 text-xs">Tasks, calls, meetings</p>
                 </div>
               </div>
             </div>
@@ -206,13 +239,24 @@ const Team = () => {
                   leadsFollowUp: 0,
                   leadsLost: 0,
                   totalRevenue: 0,
+                  averageDealSize: 0,
+                  conversionRate: 0,
+                  tasksTotal: 0,
                   tasksCompleted: 0,
-                  tasksTotal: 0
+                  tasksCompletionRate: 0,
+                  totalCommunications: 0,
+                  callsCompleted: 0,
+                  emailsSent: 0,
+                  totalAppointments: 0,
+                  upcomingAppointments: 0,
+                  completedAppointments: 0,
+                  recentActivities: 0,
+                  lastActivity: 'No activity',
+                  performanceScore: 0
                 };
-                
-                const conversionRate = performance.leadsAssigned > 0 
-                  ? Math.round((performance.leadsConverted / performance.leadsAssigned) * 100)
-                  : 0;
+
+                const activities = memberActivities[member.id] || [];
+                const isExpanded = selectedMember === member.id;
 
                 return (
                   <div key={member.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:bg-slate-800/50 transition-colors">
@@ -221,6 +265,9 @@ const Team = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg">{getRoleIcon(member.role)}</span>
                           <h3 className="text-white font-medium text-lg">{member.name}</h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPerformanceColor(performance.performanceScore)}`}>
+                            {performance.performanceScore}% Score
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
@@ -236,16 +283,26 @@ const Team = () => {
                           </span>
                         </div>
                       </div>
-                      {canManageTeam && (
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteMember(member.id, member.name)}
-                          className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2"
+                          onClick={() => setSelectedMember(isExpanded ? null : member.id)}
+                          className="border-slate-600 text-slate-300 hover:bg-slate-700"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isExpanded ? 'Less' : 'Details'}
                         </Button>
-                      )}
+                        {canManageTeam && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteMember(member.id, member.name)}
+                            className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2 mb-4">
@@ -259,9 +316,13 @@ const Team = () => {
                           {member.phone}
                         </div>
                       )}
+                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <Activity className="w-4 h-4" />
+                        Last activity: {performance.lastActivity}
+                      </div>
                     </div>
 
-                    {/* Enhanced Performance Metrics */}
+                    {/* Core Performance Metrics */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
                       <div>
                         <p className="text-slate-400 text-xs">Total Leads</p>
@@ -304,19 +365,90 @@ const Team = () => {
                       </div>
                       <div>
                         <p className="text-slate-400 text-xs">Conversion Rate</p>
-                        <p className="text-white font-medium">{conversionRate}%</p>
+                        <p className="text-white font-medium">{performance.conversionRate}%</p>
                       </div>
                     </div>
 
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-slate-700 space-y-4">
+                        {/* Activity Summary */}
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <CheckCircle className="w-4 h-4 text-blue-400" />
+                              <p className="text-slate-400 text-xs">Tasks</p>
+                            </div>
+                            <p className="text-white font-medium">{performance.tasksCompleted}/{performance.tasksTotal}</p>
+                            <p className="text-blue-400 text-xs">{performance.tasksCompletionRate}% complete</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <MessageSquare className="w-4 h-4 text-green-400" />
+                              <p className="text-slate-400 text-xs">Communications</p>
+                            </div>
+                            <p className="text-white font-medium">{performance.totalCommunications}</p>
+                            <p className="text-green-400 text-xs">{performance.callsCompleted} calls, {performance.emailsSent} emails</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <Calendar className="w-4 h-4 text-purple-400" />
+                              <p className="text-slate-400 text-xs">Appointments</p>
+                            </div>
+                            <p className="text-white font-medium">{performance.totalAppointments}</p>
+                            <p className="text-purple-400 text-xs">{performance.upcomingAppointments} upcoming</p>
+                          </div>
+                        </div>
+
+                        {/* Recent Activities */}
+                        {activities.length > 0 && (
+                          <div>
+                            <h4 className="text-white font-medium mb-2">Recent Activities</h4>
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                              {activities.slice(0, 5).map((activity, index) => (
+                                <div key={index} className="text-xs text-slate-400 bg-slate-800/50 p-2 rounded">
+                                  <span className="text-white">{activity.title}</span> - {activity.description}
+                                  <div className="text-slate-500 mt-1">
+                                    {new Date(activity.created_at).toLocaleDateString()} at {new Date(activity.created_at).toLocaleTimeString()}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Performance Insights */}
+                        <div className="bg-slate-800/50 p-3 rounded-lg">
+                          <h4 className="text-white font-medium mb-2">Performance Insights</h4>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <p className="text-slate-400">Avg Deal Size</p>
+                              <p className="text-white">₹{performance.averageDealSize.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Activities Score</p>
+                              <p className={`font-medium ${getPerformanceColor(performance.performanceScore)}`}>
+                                {performance.performanceScore}/100
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-4">
                       <div className="flex justify-between text-xs text-slate-400 mb-1">
-                        <span>Performance</span>
-                        <span>{conversionRate}%</span>
+                        <span>Overall Performance</span>
+                        <span>{performance.performanceScore}%</span>
                       </div>
                       <div className="w-full bg-slate-700 rounded-full h-2">
                         <div 
-                          className="bg-blue-500 h-2 rounded-full" 
-                          style={{ width: `${Math.min(conversionRate, 100)}%` }}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            performance.performanceScore >= 80 ? 'bg-green-500' :
+                            performance.performanceScore >= 60 ? 'bg-yellow-500' :
+                            performance.performanceScore >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${Math.min(performance.performanceScore, 100)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -333,7 +465,7 @@ const Team = () => {
                     {/* Debug info for admins */}
                     {userRole === 'Admin' && (
                       <div className="mt-2 p-2 bg-slate-800/30 rounded text-xs text-slate-500">
-                        Debug: Member ID: {member.id.slice(0, 8)}... | Email: {member.email}
+                        Debug: Member ID: {member.id.slice(0, 8)}... | Email: {member.email} | Activities: {performance.recentActivities}
                       </div>
                     )}
                   </div>

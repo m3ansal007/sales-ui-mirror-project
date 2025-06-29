@@ -204,7 +204,7 @@ export const useLeads = () => {
         assigned_team_member_id: teamMember?.id || null // Link to team member if exists
       };
 
-      console.log('Creating lead with team member assignment:', cleanData);
+      console.log('Creating lead with comprehensive team member assignment:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')
@@ -228,14 +228,14 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('Lead created successfully:', data);
+      console.log('Lead created successfully with team assignment:', data);
       
       // Don't immediately add to state - let the real-time subscription handle it
       // This prevents duplicate entries and ensures proper real-time behavior
       
       toast({
         title: "Success",
-        description: "Lead created successfully",
+        description: "Lead created successfully and assigned to your team",
       });
       return true;
     } catch (error) {
@@ -281,9 +281,33 @@ export const useLeads = () => {
     }
 
     try {
+      // If updating status to Converted, ensure team member assignment is maintained
+      const updateData = { 
+        ...updates, 
+        updated_at: new Date().toISOString() 
+      };
+
+      // Maintain team member assignment if not explicitly provided
+      if (!updates.assigned_team_member_id && !updates.assigned_to) {
+        const currentLead = leads.find(lead => lead.id === id);
+        if (currentLead && !currentLead.assigned_team_member_id) {
+          // Try to get team member record for current user
+          const { data: teamMember } = await supabase
+            .from('team_members')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+
+          if (teamMember) {
+            updateData.assigned_team_member_id = teamMember.id;
+            updateData.assigned_to = user.email;
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('leads')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
