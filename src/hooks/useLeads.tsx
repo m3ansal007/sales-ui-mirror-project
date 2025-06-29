@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,14 +59,14 @@ export const useLeads = () => {
         error = result.error;
       } else {
         // Sales associates see their own leads + leads assigned to them
-        // First get the team member ID for this user
-        const teamMemberResult = await supabase
+        // First get the team member ID for this user - use maybeSingle to avoid type issues
+        const teamMemberQuery = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (teamMemberResult.data) {
+        if (teamMemberQuery.data) {
           // Use two separate queries and combine results to avoid complex type inference
           const [ownLeadsResult, assignedLeadsResult] = await Promise.all([
             supabase
@@ -78,7 +77,7 @@ export const useLeads = () => {
             supabase
               .from('leads')
               .select('*')
-              .eq('assigned_team_member_id', teamMemberResult.data.id)
+              .eq('assigned_team_member_id', teamMemberQuery.data.id)
               .order('created_at', { ascending: false })
           ]);
 
