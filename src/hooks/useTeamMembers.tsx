@@ -66,20 +66,18 @@ export const useTeamMembers = () => {
         let authUserId: string | null = null;
         
         try {
-          // Type the RPC call properly
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_user_by_email', { user_email: member.email as string }) as {
-              data: GetUserByEmailResponse[] | GetUserByEmailResponse | null;
-              error: any;
-            };
+          // Call RPC without type assertion that causes conflicts
+          const rpcResult = await supabase.rpc('get_user_by_email', { 
+            user_email: member.email 
+          });
 
-          if (!rpcError && rpcData) {
+          if (!rpcResult.error && rpcResult.data) {
             // Handle both array and single object responses
-            if (Array.isArray(rpcData) && rpcData.length > 0) {
-              const userData = rpcData[0] as GetUserByEmailResponse;
+            if (Array.isArray(rpcResult.data) && rpcResult.data.length > 0) {
+              const userData = rpcResult.data[0] as GetUserByEmailResponse;
               authUserId = userData?.id;
-            } else if (rpcData && typeof rpcData === 'object' && 'id' in rpcData) {
-              const userData = rpcData as GetUserByEmailResponse;
+            } else if (rpcResult.data && typeof rpcResult.data === 'object' && 'id' in rpcResult.data) {
+              const userData = rpcResult.data as GetUserByEmailResponse;
               authUserId = userData.id;
             }
             
@@ -87,7 +85,7 @@ export const useTeamMembers = () => {
               console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
             }
           } else {
-            console.log(`⚠️ No auth user found for ${member.email}:`, rpcError);
+            console.log(`⚠️ No auth user found for ${member.email}:`, rpcResult.error);
             // Try to find user in profiles table as fallback
             const { data: profileData } = await supabase
               .from('profiles')
