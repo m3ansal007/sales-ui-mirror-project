@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,7 +48,7 @@ export const useTeamMembers = () => {
       if (teamError) throw teamError;
       setTeamMembers(teamData || []);
       
-      console.log('📊 Found team members:', teamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: (tm as any).auth_user_id })));
+      console.log('📊 Found team members:', teamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: tm.auth_user_id })));
       
       // Fetch comprehensive performance data for each team member
       const performanceData: Record<string, any> = {};
@@ -57,7 +58,7 @@ export const useTeamMembers = () => {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
         // Use the stored auth_user_id instead of making admin API calls
-        const authUserId = (member as any).auth_user_id;
+        const authUserId = member.auth_user_id;
         
         if (!authUserId) {
           console.log(`⚠️ No auth_user_id found for ${member.email}, attempting to sync...`);
@@ -68,20 +69,21 @@ export const useTeamMembers = () => {
               member_email: member.email
             });
             
-            if (!syncError && syncResult && typeof syncResult === 'string') {
-              console.log(`🔄 Sync result for ${member.email}:`, syncResult);
+            if (!syncError && syncResult) {
+              const resultString = String(syncResult);
+              console.log(`🔄 Sync result for ${member.email}:`, resultString);
               
               // If sync was successful, refetch the team member data
-              if (syncResult.includes('SUCCESS')) {
+              if (resultString.includes('SUCCESS')) {
                 const { data: updatedMember } = await supabase
                   .from('team_members')
                   .select('*')
                   .eq('id', member.id)
                   .single();
                 
-                if (updatedMember && (updatedMember as any).auth_user_id) {
-                  (member as any).auth_user_id = (updatedMember as any).auth_user_id;
-                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${(updatedMember as any).auth_user_id}`);
+                if (updatedMember && updatedMember.auth_user_id) {
+                  member.auth_user_id = updatedMember.auth_user_id;
+                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${updatedMember.auth_user_id}`);
                 }
               }
             }
@@ -90,7 +92,7 @@ export const useTeamMembers = () => {
           }
           
           // If still no auth_user_id, set default performance data
-          if (!(member as any).auth_user_id) {
+          if (!member.auth_user_id) {
             performanceData[member.id] = {
               leadsAssigned: 0,
               leadsConverted: 0,
@@ -121,7 +123,7 @@ export const useTeamMembers = () => {
           }
         }
 
-        console.log(`✅ Found auth user ID for ${member.email}: ${(member as any).auth_user_id}`);
+        console.log(`✅ Found auth user ID for ${member.email}: ${member.auth_user_id}`);
 
         // Get all leads assigned to this team member OR created by them
         let allLeads: any[] = [];
@@ -141,7 +143,7 @@ export const useTeamMembers = () => {
         const { data: userLeads, error: userLeadsError } = await supabase
           .from('leads')
           .select('*')
-          .eq('user_id', (member as any).auth_user_id);
+          .eq('user_id', member.auth_user_id);
 
         if (!userLeadsError && userLeads) {
           // Merge and deduplicate
@@ -162,28 +164,28 @@ export const useTeamMembers = () => {
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('*')
-          .eq('user_id', (member as any).auth_user_id);
+          .eq('user_id', member.auth_user_id);
         tasks = tasksData || [];
 
         // Get communications
         const { data: commsData } = await supabase
           .from('communications')
           .select('*')
-          .eq('user_id', (member as any).auth_user_id);
+          .eq('user_id', member.auth_user_id);
         communications = commsData || [];
 
         // Get appointments
         const { data: apptsData } = await supabase
           .from('appointments')
           .select('*')
-          .eq('user_id', (member as any).auth_user_id);
+          .eq('user_id', member.auth_user_id);
         appointments = apptsData || [];
 
         // Get activities (both their own and admin activities about them)
         const { data: activitiesData } = await supabase
           .from('activities')
           .select('*')
-          .or(`user_id.eq.${(member as any).auth_user_id},user_id.eq.${user.id}`)
+          .or(`user_id.eq.${member.auth_user_id},user_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
           .limit(10);
         activities = activitiesData || [];
@@ -255,15 +257,15 @@ export const useTeamMembers = () => {
           performanceScore,
 
           // Debug info
-          authUserId: (member as any).auth_user_id,
-          hasAuthUser: !!(member as any).auth_user_id,
+          authUserId: member.auth_user_id,
+          hasAuthUser: !!member.auth_user_id,
           dataSource: 'auth_user_id_stored'
         };
 
         console.log(`✅ Performance summary for ${member.name}:`, {
           email: member.email,
-          authUserId: (member as any).auth_user_id,
-          hasAuthUser: !!(member as any).auth_user_id,
+          authUserId: member.auth_user_id,
+          hasAuthUser: !!member.auth_user_id,
           totalLeads: allLeads.length,
           convertedLeads: convertedLeads.length,
           totalRevenue,

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,8 @@ export interface Lead {
   updated_at: string;
   user_id: string;
 }
+
+type LeadCreateData = Omit<Lead, 'id' | 'created_at' | 'updated_at'>;
 
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -148,8 +151,10 @@ export const useLeads = () => {
   }, [user, userRole, toast]);
 
   // Check for duplicate leads
-  const checkForDuplicate = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+  const checkForDuplicate = (leadData: Partial<Lead>) => {
     const { name, email, phone } = leadData;
+    
+    if (!name) return { isDuplicate: false };
     
     // Find leads with the same name
     const duplicates = leads.filter(lead => 
@@ -184,7 +189,7 @@ export const useLeads = () => {
     return { isDuplicate: false };
   };
 
-  const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+  const createLead = async (leadData: Partial<LeadCreateData>) => {
     if (!user) {
       toast({
         title: "Error",
@@ -209,7 +214,7 @@ export const useLeads = () => {
       console.log('🔄 Creating lead for user:', user.email);
       
       const cleanData = {
-        name: leadData.name,
+        name: leadData.name || '',
         email: leadData.email || null,
         phone: leadData.phone || null,
         company: leadData.company || null,
@@ -266,7 +271,7 @@ export const useLeads = () => {
         description: assignmentMessage,
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating lead:', error);
       toast({
         title: "Error",
@@ -349,7 +354,7 @@ export const useLeads = () => {
         description: "Lead updated successfully",
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating lead:', error);
       toast({
         title: "Error",
@@ -379,7 +384,7 @@ export const useLeads = () => {
         description: "Lead deleted successfully",
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting lead:', error);
       toast({
         title: "Error",
