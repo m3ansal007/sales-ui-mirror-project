@@ -1,4 +1,5 @@
-import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest } from "lucide-react";
+
+import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -82,6 +83,10 @@ export const Sidebar = () => {
                 <button onClick={() => navigate("/leads")} className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
                   <UserPlus className="w-3 h-3" />
                   Add New Lead
+                </button>
+                <button onClick={() => navigate("/assign-leads")} className={cn("w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors", isActive("/assign-leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800")}>
+                  <UserCheck className="w-3 h-3" />
+                  Assign Leads
                 </button>
                 <button onClick={() => toggleSection('leadStages')} className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center justify-between">
                   Lead Stages

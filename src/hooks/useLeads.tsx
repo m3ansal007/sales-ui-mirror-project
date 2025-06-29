@@ -59,14 +59,14 @@ export const useLeads = () => {
         error = result.error;
       } else {
         // Sales associates see their own leads + leads assigned to them
-        // First get the team member ID for this user - use maybeSingle to avoid type issues
-        const teamMemberQuery = await supabase
+        // First get the team member ID for this user
+        const { data: teamMemberData } = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
-          .maybeSingle();
+          .limit(1);
 
-        if (teamMemberQuery.data) {
+        if (teamMemberData && teamMemberData.length > 0) {
           // Use two separate queries and combine results to avoid complex type inference
           const [ownLeadsResult, assignedLeadsResult] = await Promise.all([
             supabase
@@ -77,7 +77,7 @@ export const useLeads = () => {
             supabase
               .from('leads')
               .select('*')
-              .eq('assigned_team_member_id', teamMemberQuery.data.id)
+              .eq('assigned_team_member_id', teamMemberData[0].id)
               .order('created_at', { ascending: false })
           ]);
 
