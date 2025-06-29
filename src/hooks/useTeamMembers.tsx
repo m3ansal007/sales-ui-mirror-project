@@ -11,6 +11,7 @@ export interface TeamMember {
   role: string;
   status: string;
   hire_date?: string;
+  auth_user_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -52,22 +53,41 @@ export const useTeamMembers = () => {
       for (const member of teamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
-        // Get auth user for this team member
-        let authUserId: string | null = null;
+        // Use the stored auth_user_id instead of making admin API calls
+        const authUserId = member.auth_user_id;
         
-        try {
-          // Find the auth user by email
-          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-          if (!authError && authUsers) {
-            const authUser = authUsers.users.find(u => u.email === member.email);
-            if (authUser) {
-              authUserId = authUser.id;
-              console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
-            }
-          }
-        } catch (error) {
-          console.log(`⚠️ Could not get auth user for ${member.email}:`, error);
+        if (!authUserId) {
+          console.log(`⚠️ No auth_user_id found for ${member.email}, skipping performance data`);
+          performanceData[member.id] = {
+            leadsAssigned: 0,
+            leadsConverted: 0,
+            leadsNew: 0,
+            leadsContacted: 0,
+            leadsFollowUp: 0,
+            leadsLost: 0,
+            totalRevenue: 0,
+            averageDealSize: 0,
+            conversionRate: 0,
+            tasksTotal: 0,
+            tasksCompleted: 0,
+            tasksCompletionRate: 0,
+            totalCommunications: 0,
+            callsCompleted: 0,
+            emailsSent: 0,
+            totalAppointments: 0,
+            upcomingAppointments: 0,
+            completedAppointments: 0,
+            recentActivities: 0,
+            lastActivity: 'No activity',
+            performanceScore: 0,
+            authUserId: null,
+            hasAuthUser: false,
+            dataSource: 'no_auth_user'
+          };
+          continue;
         }
+
+        console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
 
         // Get all leads assigned to this team member OR created by them
         let allLeads: any[] = [];
@@ -83,19 +103,17 @@ export const useTeamMembers = () => {
           console.log(`📋 Found ${assignedLeads.length} leads assigned to ${member.name}`);
         }
 
-        // Method B: Leads created by the auth user (if we found one)
-        if (authUserId) {
-          const { data: userLeads, error: userLeadsError } = await supabase
-            .from('leads')
-            .select('*')
-            .eq('user_id', authUserId);
+        // Method B: Leads created by the auth user
+        const { data: userLeads, error: userLeadsError } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', authUserId);
 
-          if (!userLeadsError && userLeads) {
-            // Merge and deduplicate
-            const newLeads = userLeads.filter(ul => !allLeads.some(al => al.id === ul.id));
-            allLeads = [...allLeads, ...newLeads];
-            console.log(`📋 Found ${userLeads.length} leads created by ${member.name} (${newLeads.length} new)`);
-          }
+        if (!userLeadsError && userLeads) {
+          // Merge and deduplicate
+          const newLeads = userLeads.filter(ul => !allLeads.some(al => al.id === ul.id));
+          allLeads = [...allLeads, ...newLeads];
+          console.log(`📋 Found ${userLeads.length} leads created by ${member.name} (${newLeads.length} new)`);
         }
 
         console.log(`📊 Total unique leads for ${member.name}: ${allLeads.length}`);
@@ -106,38 +124,36 @@ export const useTeamMembers = () => {
         let appointments: any[] = [];
         let activities: any[] = [];
 
-        if (authUserId) {
-          // Get tasks
-          const { data: tasksData } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', authUserId);
-          tasks = tasksData || [];
+        // Get tasks
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', authUserId);
+        tasks = tasksData || [];
 
-          // Get communications
-          const { data: commsData } = await supabase
-            .from('communications')
-            .select('*')
-            .eq('user_id', authUserId);
-          communications = commsData || [];
+        // Get communications
+        const { data: commsData } = await supabase
+          .from('communications')
+          .select('*')
+          .eq('user_id', authUserId);
+        communications = commsData || [];
 
-          // Get appointments
-          const { data: apptsData } = await supabase
-            .from('appointments')
-            .select('*')
-            .eq('user_id', authUserId);
-          appointments = apptsData || [];
+        // Get appointments
+        const { data: apptsData } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('user_id', authUserId);
+        appointments = apptsData || [];
 
-          // Get activities (both their own and admin activities about them)
-          const { data: activitiesData } = await supabase
-            .from('activities')
-            .select('*')
-            .or(`user_id.eq.${authUserId},user_id.eq.${user.id}`)
-            .order('created_at', { ascending: false })
-            .limit(10);
-          activities = activitiesData || [];
-          activitiesData[member.id] = activities;
-        }
+        // Get activities (both their own and admin activities about them)
+        const { data: activitiesData } = await supabase
+          .from('activities')
+          .select('*')
+          .or(`user_id.eq.${authUserId},user_id.eq.${user.id}`)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        activities = activitiesData || [];
+        activitiesData[member.id] = activities;
 
         // Calculate comprehensive performance metrics
         const convertedLeads = allLeads.filter(lead => lead.status === 'Converted');
@@ -207,7 +223,7 @@ export const useTeamMembers = () => {
           // Debug info
           authUserId,
           hasAuthUser: !!authUserId,
-          dataSource: authUserId ? 'user_data' : 'assignment_based'
+          dataSource: 'auth_user_id_stored'
         };
 
         console.log(`✅ Performance summary for ${member.name}:`, {
@@ -223,7 +239,7 @@ export const useTeamMembers = () => {
           appointments: appointments.length,
           activities: activities.length,
           performanceScore,
-          dataSource: authUserId ? 'user_data' : 'assignment_based'
+          dataSource: 'auth_user_id_stored'
         });
       }
       
