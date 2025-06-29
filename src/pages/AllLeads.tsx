@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +21,7 @@ const AllLeads = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const selectAllCheckboxRef = useRef<HTMLButtonElement>(null);
 
   // Handle URL parameters for status filtering
   useEffect(() => {
@@ -140,6 +142,13 @@ const AllLeads = () => {
   const isAllSelected = filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length;
   const isSomeSelected = selectedLeads.length > 0 && selectedLeads.length < filteredLeads.length;
 
+  // Update indeterminate state
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isSomeSelected;
+    }
+  }, [isSomeSelected]);
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
       <Sidebar />
@@ -196,13 +205,9 @@ const AllLeads = () => {
                   <TableRow className="border-slate-800">
                     <TableHead className="text-slate-300 w-12">
                       <Checkbox
+                        ref={selectAllCheckboxRef}
                         checked={isAllSelected}
                         onCheckedChange={handleSelectAll}
-                        ref={(el) => {
-                          if (el) {
-                            el.indeterminate = isSomeSelected;
-                          }
-                        }}
                         className="border-slate-600"
                       />
                     </TableHead>

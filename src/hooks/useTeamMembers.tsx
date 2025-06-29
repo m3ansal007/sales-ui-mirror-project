@@ -16,6 +16,11 @@ export interface TeamMember {
   updated_at: string;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
 export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [memberPerformance, setMemberPerformance] = useState<Record<string, any>>({});
@@ -47,16 +52,21 @@ export const useTeamMembers = () => {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
         // Step 1: Get the auth user ID for this team member's email using proper RPC call
-        let authUserId = null;
+        let authUserId: string | null = null;
+        let authUserData: AuthUser[] = [];
+        
         try {
-          const { data: authUserData, error: authUserError } = await supabase
+          const { data: rpcData, error: rpcError } = await supabase
             .rpc('get_user_by_email', { user_email: member.email });
 
-          if (!authUserError && authUserData && authUserData.length > 0) {
-            authUserId = authUserData[0].id;
-            console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+          if (!rpcError && rpcData) {
+            authUserData = rpcData as AuthUser[];
+            if (authUserData.length > 0) {
+              authUserId = authUserData[0].id;
+              console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+            }
           } else {
-            console.log(`⚠️ No auth user found for ${member.email}:`, authUserError);
+            console.log(`⚠️ No auth user found for ${member.email}:`, rpcError);
             // Try to find user in profiles table as fallback
             const { data: profileData } = await supabase
               .from('profiles')
