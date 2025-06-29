@@ -46,15 +46,22 @@ export const useTeamMembers = () => {
         .order('created_at', { ascending: false });
 
       if (teamError) throw teamError;
-      setTeamMembers(teamData || []);
       
-      console.log('📊 Found team members:', teamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: tm.auth_user_id })));
+      // Cast the data to include auth_user_id
+      const typedTeamData = (teamData || []).map(member => ({
+        ...member,
+        auth_user_id: (member as any).auth_user_id || null
+      })) as TeamMember[];
+      
+      setTeamMembers(typedTeamData);
+      
+      console.log('📊 Found team members:', typedTeamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: tm.auth_user_id })));
       
       // Fetch comprehensive performance data for each team member
       const performanceData: Record<string, any> = {};
       const activitiesData: Record<string, any[]> = {};
       
-      for (const member of teamData || []) {
+      for (const member of typedTeamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
         // Use the stored auth_user_id instead of making admin API calls
@@ -81,9 +88,9 @@ export const useTeamMembers = () => {
                   .eq('id', member.id)
                   .single();
                 
-                if (updatedMember && updatedMember.auth_user_id) {
-                  member.auth_user_id = updatedMember.auth_user_id;
-                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${updatedMember.auth_user_id}`);
+                if (updatedMember && (updatedMember as any).auth_user_id) {
+                  member.auth_user_id = (updatedMember as any).auth_user_id;
+                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${member.auth_user_id}`);
                 }
               }
             }
@@ -189,7 +196,7 @@ export const useTeamMembers = () => {
           .order('created_at', { ascending: false })
           .limit(10);
         activities = activitiesData || [];
-        activitiesData[member.id] = activities;
+        memberActivities[member.id] = activities;
 
         // Calculate comprehensive performance metrics
         const convertedLeads = allLeads.filter(lead => lead.status === 'Converted');
@@ -405,7 +412,7 @@ export const useTeamMembers = () => {
       
       if (!error && data) {
         console.log(`🔍 Debug info for ${email}:`, data);
-        return data;
+        return String(data);
       }
     } catch (error) {
       console.error('Debug error:', error);

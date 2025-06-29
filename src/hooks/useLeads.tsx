@@ -21,8 +21,6 @@ export interface Lead {
   user_id: string;
 }
 
-type LeadCreateData = Omit<Lead, 'id' | 'created_at' | 'updated_at'>;
-
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,7 +187,7 @@ export const useLeads = () => {
     return { isDuplicate: false };
   };
 
-  const createLead = async (leadData: Partial<LeadCreateData>) => {
+  const createLead = async (leadData: Partial<Lead>) => {
     if (!user) {
       toast({
         title: "Error",
