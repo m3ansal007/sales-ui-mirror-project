@@ -21,6 +21,17 @@ interface AuthUser {
   email: string;
 }
 
+interface RpcResponse {
+  id: string;
+  email: string;
+}
+
+interface RealtimePayload {
+  eventType: string;
+  new?: { name?: string; [key: string]: any };
+  old?: { name?: string; [key: string]: any };
+}
+
 export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [memberPerformance, setMemberPerformance] = useState<Record<string, any>>({});
@@ -57,7 +68,7 @@ export const useTeamMembers = () => {
         
         try {
           const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_user_by_email', { user_email: member.email });
+            .rpc('get_user_by_email', { user_email: member.email }) as { data: RpcResponse[] | null; error: any };
 
           if (!rpcError && rpcData) {
             authUserData = rpcData as AuthUser[];
@@ -296,7 +307,7 @@ export const useTeamMembers = () => {
     // Subscribe to all relevant table changes
     const leadsChannel = supabase
       .channel('team-performance-leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload: RealtimePayload) => {
         console.log('📋 Lead change detected:', payload.eventType, payload.new?.name || payload.old?.name);
         setTimeout(fetchTeamMembers, 1000); // Delay to ensure data consistency
       })
@@ -304,7 +315,7 @@ export const useTeamMembers = () => {
 
     const tasksChannel = supabase
       .channel('team-performance-tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: RealtimePayload) => {
         console.log('📋 Task change detected:', payload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
@@ -312,7 +323,7 @@ export const useTeamMembers = () => {
 
     const communicationsChannel = supabase
       .channel('team-performance-communications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload: RealtimePayload) => {
         console.log('📞 Communication change detected:', payload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
@@ -320,7 +331,7 @@ export const useTeamMembers = () => {
 
     const appointmentsChannel = supabase
       .channel('team-performance-appointments')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload: RealtimePayload) => {
         console.log('📅 Appointment change detected:', payload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
@@ -328,7 +339,7 @@ export const useTeamMembers = () => {
 
     const activitiesChannel = supabase
       .channel('team-performance-activities')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload: RealtimePayload) => {
         console.log('🎯 Activity change detected:', payload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
@@ -336,7 +347,7 @@ export const useTeamMembers = () => {
 
     const teamChannel = supabase
       .channel('team-members-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload: RealtimePayload) => {
         console.log('👥 Team member change detected:', payload.eventType);
         setTimeout(fetchTeamMembers, 1000);
       })
