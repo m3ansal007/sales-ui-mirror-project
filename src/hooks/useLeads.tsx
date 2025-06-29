@@ -22,17 +22,26 @@ export interface Lead {
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
 
   const fetchLeads = async () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let query = supabase.from('leads').select('*');
+      
+      // If user is admin, show all leads (including those created by team members)
+      // If user is sales associate, show only their own leads
+      if (userRole === 'Admin' || userRole === 'Sales Manager') {
+        // Admin sees all leads in the system
+        query = query.order('created_at', { ascending: false });
+      } else {
+        // Sales associates see only their own leads
+        query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       console.log('Fetched leads:', data?.length || 0);
@@ -122,7 +131,7 @@ export const useLeads = () => {
       console.log('Cleaning up leads subscription...');
       supabase.removeChannel(leadsChannel);
     };
-  }, [user, toast]);
+  }, [user, userRole, toast]);
 
   // Check for duplicate leads
   const checkForDuplicate = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
@@ -185,19 +194,6 @@ export const useLeads = () => {
     try {
       console.log('🔄 Creating lead for user:', user.email);
       
-      // Get current user's team member record to link the lead
-      const { data: teamMember, error: teamMemberError } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('email', user.email)
-        .single();
-
-      if (teamMemberError) {
-        console.log('⚠️ No team member record found for user:', user.email, teamMemberError);
-      } else {
-        console.log('✅ Found team member record:', teamMember.id);
-      }
-
       const cleanData = {
         name: leadData.name,
         email: leadData.email || null,
@@ -208,14 +204,12 @@ export const useLeads = () => {
         notes: leadData.notes || null,
         value: leadData.value ? Number(leadData.value) : null,
         user_id: user.id,
-        // Properly assign team member ID for tracking
-        assigned_team_member_id: teamMember?.id || null
+        // The assigned_team_member_id will be set automatically by the trigger
       };
 
       console.log('📝 Creating lead with data:', {
         ...cleanData,
         user_email: user.email,
-        team_member_found: !!teamMember
       });
 
       const { data, error } = await supabase
@@ -240,42 +234,20 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('✅ Lead created successfully with team assignment:', {
+      console.log('✅ Lead created successfully:', {
         leadId: data.id,
         leadName: data.name,
         userId: data.user_id,
         teamMemberId: data.assigned_team_member_id,
         userEmail: user.email
       });
-
-      // Manually create activity record to ensure it's logged
-      try {
-        const { error: activityError } = await supabase
-          .from('activities')
-          .insert({
-            user_id: user.id,
-            lead_id: data.id,
-            type: 'created',
-            title: 'New lead added',
-            description: data.name,
-            metadata: data
-          });
-
-        if (activityError) {
-          console.error('⚠️ Failed to create activity record:', activityError);
-        } else {
-          console.log('✅ Activity record created for new lead');
-        }
-      } catch (activityErr) {
-        console.error('⚠️ Error creating activity record:', activityErr);
-      }
       
       // Don't immediately add to state - let the real-time subscription handle it
       // This prevents duplicate entries and ensures proper real-time behavior
       
       toast({
         title: "Success",
-        description: "Lead created successfully and assigned to your team",
+        description: "Lead created successfully",
       });
       return true;
     } catch (error) {
@@ -321,29 +293,10 @@ export const useLeads = () => {
     }
 
     try {
-      // If updating status to Converted, ensure team member assignment is maintained
       const updateData = { 
         ...updates, 
         updated_at: new Date().toISOString() 
       };
-
-      // Maintain team member assignment if not explicitly provided
-      if (!updates.assigned_team_member_id) {
-        const currentLead = leads.find(lead => lead.id === id);
-        if (currentLead && !currentLead.assigned_team_member_id) {
-          // Try to get team member record for current user
-          const { data: teamMember } = await supabase
-            .from('team_members')
-            .select('id')
-            .eq('email', user.email)
-            .single();
-
-          if (teamMember) {
-            updateData.assigned_team_member_id = teamMember.id;
-            console.log('🔗 Assigning team member to lead during update:', teamMember.id);
-          }
-        }
-      }
 
       const { data, error } = await supabase
         .from('leads')
@@ -373,7 +326,6 @@ export const useLeads = () => {
       console.log('✅ Lead updated successfully:', {
         leadId: id,
         updates,
-        teamMemberId: updateData.assigned_team_member_id
       });
       
       toast({

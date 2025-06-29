@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,62 +35,44 @@ export const useTeamMembers = () => {
     try {
       console.log('🔄 Fetching team members and performance data...');
       
-      // Fetch team members
+      // Fetch team members created by this admin
       const { data: teamData, error: teamError } = await supabase
         .from('team_members')
         .select('*')
+        .eq('user_id', user.id) // Only get team members created by this admin
         .order('created_at', { ascending: false });
 
       if (teamError) throw teamError;
       setTeamMembers(teamData || []);
       
-      // Fetch comprehensive performance and activity data for each team member
+      // Fetch comprehensive performance data for each team member
       const performanceData: Record<string, any> = {};
       const activitiesData: Record<string, any[]> = {};
       
       for (const member of teamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
-        // Step 1: Get the auth user ID for this team member's email
+        // Get auth user for this team member
         let authUserId: string | null = null;
         
         try {
-          // First try to find in profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('email', member.email)
-            .single();
-          
-          if (!profileError && profileData) {
-            authUserId = profileData.id;
-            console.log(`✅ Found auth user ID in profiles for ${member.email}: ${authUserId}`);
-          } else {
-            console.log(`⚠️ No profile found for ${member.email}, trying alternative approach`);
-            
-            // Try to find user by looking for leads created by this email
-            const { data: userLeadsData } = await supabase
-              .from('leads')
-              .select('user_id')
-              .not('user_id', 'is', null)
-              .limit(1);
-            
-            // If we have leads, try to find a user with the matching email in auth metadata
-            if (userLeadsData && userLeadsData.length > 0) {
-              // This is a fallback - in a real scenario, we'd need to query auth users
-              // which isn't directly possible, so we'll check if there are any activities
-              // that might be linked to this email
-              console.log(`🔍 Checking for existing activities for ${member.email}`);
+          // Find the auth user by email
+          const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+          if (!authError && authUsers) {
+            const authUser = authUsers.users.find(u => u.email === member.email);
+            if (authUser) {
+              authUserId = authUser.id;
+              console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
             }
           }
         } catch (error) {
-          console.log(`❌ Error getting auth user for ${member.email}:`, error);
+          console.log(`⚠️ Could not get auth user for ${member.email}:`, error);
         }
 
-        // Step 2: Get all leads for this team member using multiple matching strategies
+        // Get all leads assigned to this team member OR created by them
         let allLeads: any[] = [];
         
-        // Method A: Leads assigned to this team member directly by team member ID
+        // Method A: Leads assigned to this team member directly
         const { data: assignedLeads, error: assignedError } = await supabase
           .from('leads')
           .select('*')
@@ -99,7 +80,7 @@ export const useTeamMembers = () => {
 
         if (!assignedError && assignedLeads) {
           allLeads = [...allLeads, ...assignedLeads];
-          console.log(`📋 Found ${assignedLeads.length} leads assigned to team member ${member.name}`);
+          console.log(`📋 Found ${assignedLeads.length} leads assigned to ${member.name}`);
         }
 
         // Method B: Leads created by the auth user (if we found one)
@@ -113,103 +94,52 @@ export const useTeamMembers = () => {
             // Merge and deduplicate
             const newLeads = userLeads.filter(ul => !allLeads.some(al => al.id === ul.id));
             allLeads = [...allLeads, ...newLeads];
-            console.log(`📋 Found ${userLeads.length} leads created by user ${member.name} (${newLeads.length} new)`);
-          }
-        }
-
-        // Method C: If no auth user found, try to find leads by email pattern matching
-        if (!authUserId && allLeads.length === 0) {
-          console.log(`🔍 No auth user found for ${member.email}, trying email-based lead matching`);
-          
-          // Look for leads that might belong to this team member
-          const { data: potentialLeads } = await supabase
-            .from('leads')
-            .select('*')
-            .or(`notes.ilike.%${member.name}%,notes.ilike.%${member.email}%`);
-
-          if (potentialLeads && potentialLeads.length > 0) {
-            allLeads = [...allLeads, ...potentialLeads];
-            console.log(`📋 Found ${potentialLeads.length} potential leads for ${member.name} via pattern matching`);
+            console.log(`📋 Found ${userLeads.length} leads created by ${member.name} (${newLeads.length} new)`);
           }
         }
 
         console.log(`📊 Total unique leads for ${member.name}: ${allLeads.length}`);
 
-        // Step 3: Get tasks, communications, appointments, and activities
+        // Get tasks, communications, appointments for this team member
         let tasks: any[] = [];
         let communications: any[] = [];
         let appointments: any[] = [];
         let activities: any[] = [];
 
         if (authUserId) {
-          // Get tasks with proper error handling
-          try {
-            const { data: tasksData, error: tasksError } = await supabase
-              .from('tasks')
-              .select('*')
-              .eq('user_id', authUserId);
+          // Get tasks
+          const { data: tasksData } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('user_id', authUserId);
+          tasks = tasksData || [];
 
-            if (!tasksError && tasksData) {
-              tasks = tasksData;
-              console.log(`📋 Found ${tasks.length} tasks for ${member.name}`);
-            }
-          } catch (error) {
-            console.log(`❌ Error fetching tasks for ${member.name}:`, error);
-          }
+          // Get communications
+          const { data: commsData } = await supabase
+            .from('communications')
+            .select('*')
+            .eq('user_id', authUserId);
+          communications = commsData || [];
 
-          // Get communications with proper error handling
-          try {
-            const { data: commsData, error: commsError } = await supabase
-              .from('communications')
-              .select('*')
-              .eq('user_id', authUserId);
+          // Get appointments
+          const { data: apptsData } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('user_id', authUserId);
+          appointments = apptsData || [];
 
-            if (!commsError && commsData) {
-              communications = commsData;
-              console.log(`📞 Found ${communications.length} communications for ${member.name}`);
-            }
-          } catch (error) {
-            console.log(`❌ Error fetching communications for ${member.name}:`, error);
-          }
-
-          // Get appointments with proper error handling
-          try {
-            const { data: apptsData, error: apptsError } = await supabase
-              .from('appointments')
-              .select('*')
-              .eq('user_id', authUserId);
-
-            if (!apptsError && apptsData) {
-              appointments = apptsData;
-              console.log(`📅 Found ${appointments.length} appointments for ${member.name}`);
-            }
-          } catch (error) {
-            console.log(`❌ Error fetching appointments for ${member.name}:`, error);
-          }
-
-          // Get activities with proper error handling
-          try {
-            const { data: activitiesData, error: activitiesError } = await supabase
-              .from('activities')
-              .select('*')
-              .eq('user_id', authUserId)
-              .order('created_at', { ascending: false })
-              .limit(10);
-
-            if (!activitiesError && activitiesData) {
-              activities = activitiesData;
-              activitiesData[member.id] = activities;
-              console.log(`🎯 Found ${activities.length} activities for ${member.name}`);
-            }
-          } catch (error) {
-            console.log(`❌ Error fetching activities for ${member.name}:`, error);
-          }
-        } else {
-          console.log(`⚠️ No auth user ID found for ${member.name}, cannot fetch user-specific data`);
-          console.log(`💡 This team member may not have logged in yet or created any leads`);
+          // Get activities (both their own and admin activities about them)
+          const { data: activitiesData } = await supabase
+            .from('activities')
+            .select('*')
+            .or(`user_id.eq.${authUserId},user_id.eq.${user.id}`)
+            .order('created_at', { ascending: false })
+            .limit(10);
+          activities = activitiesData || [];
+          activitiesData[member.id] = activities;
         }
 
-        // Step 4: Calculate comprehensive performance metrics
+        // Calculate comprehensive performance metrics
         const convertedLeads = allLeads.filter(lead => lead.status === 'Converted');
         const totalRevenue = convertedLeads
           .filter(lead => lead.value)
