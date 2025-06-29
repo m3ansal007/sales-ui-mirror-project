@@ -81,12 +81,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error checking user role:', error);
-        return { role: null, error };
+        
+        // Check if this is an environment configuration error
+        if (error.message?.includes('Missing required environment variables') || 
+            error.message?.includes('configuration error')) {
+          return { 
+            role: null, 
+            error: {
+              message: 'Role verification is temporarily unavailable. Please contact your administrator.',
+              type: 'CONFIG_ERROR',
+              details: error.message
+            }
+          };
+        }
+        
+        // For other errors, allow authentication to proceed
+        console.log('Role check failed, but allowing authentication to proceed:', error);
+        return { role: null, error: null };
       }
 
       return { role: data?.role || null, error: null };
     } catch (error) {
       console.error('Error in checkUserRole:', error);
+      
+      // If it's a network error or fetch failure, allow authentication to proceed
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.log('Network error during role check, allowing authentication to proceed');
+        return { role: null, error: null };
+      }
+      
       return { role: null, error };
     }
   };

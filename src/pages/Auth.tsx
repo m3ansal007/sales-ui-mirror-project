@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Eye, EyeOff, User, Shield, AlertTriangle } from 'lucide-react';
+import { Target, Eye, EyeOff, User, Shield, AlertTriangle, Info } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,6 +18,7 @@ const Auth = () => {
   const [roleError, setRoleError] = useState('');
   const [userActualRole, setUserActualRole] = useState('');
   const [preventSubmit, setPreventSubmit] = useState(false);
+  const [roleCheckUnavailable, setRoleCheckUnavailable] = useState(false);
   
   const { signIn, signUp, user, checkUserRole } = useAuth();
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ const Auth = () => {
     setIsCheckingRole(true);
     setRoleError(''); // Clear any previous role errors
     setPreventSubmit(false);
+    setRoleCheckUnavailable(false);
     
     try {
       console.log('Checking role for email:', email, 'selected role:', selectedRole);
@@ -43,6 +45,17 @@ const Auth = () => {
       const { role: actualRole, error } = await checkUserRole(email);
       
       if (error) {
+        // Check if this is a configuration error
+        if (error.type === 'CONFIG_ERROR') {
+          setRoleCheckUnavailable(true);
+          toast({
+            title: "⚠️ Role Verification Unavailable",
+            description: "Role verification is temporarily unavailable. You can still login, but please ensure you're selecting the correct role.",
+            variant: "default",
+          });
+          return { canProceed: true };
+        }
+        
         console.log('Could not verify role, proceeding with authentication:', error);
         return { canProceed: true };
       }
@@ -67,6 +80,18 @@ const Auth = () => {
       return { canProceed: true };
     } catch (error) {
       console.error('Error checking role:', error);
+      
+      // If it's a network error, allow authentication to proceed with a warning
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        setRoleCheckUnavailable(true);
+        toast({
+          title: "⚠️ Role Verification Unavailable",
+          description: "Cannot verify role due to network issues. You can still login, but please ensure you're selecting the correct role.",
+          variant: "default",
+        });
+        return { canProceed: true };
+      }
+      
       setRoleError('⚠️ Could not verify role. Please try again.');
       setPreventSubmit(true);
       return { canProceed: false }; // Don't allow authentication if role check fails
@@ -189,6 +214,8 @@ const Auth = () => {
       setUserActualRole('');
       setPreventSubmit(false);
     }
+    // Clear role check unavailable warning
+    setRoleCheckUnavailable(false);
   };
 
   const handleCorrectRole = () => {
@@ -206,6 +233,7 @@ const Auth = () => {
     setRoleError(''); // Clear role error when switching modes
     setUserActualRole('');
     setPreventSubmit(false);
+    setRoleCheckUnavailable(false);
     setEmail('');
     setPassword('');
     setFullName('');
@@ -332,6 +360,21 @@ const Auth = () => {
                 </select>
               </div>
               
+              {/* Role Check Unavailable Warning */}
+              {roleCheckUnavailable && !roleError && (
+                <div className="mt-2 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-yellow-200 text-sm font-medium">Role Verification Unavailable</p>
+                      <p className="text-yellow-100 text-xs mt-1">
+                        Cannot verify your role at the moment. Please ensure you're selecting the correct role for your account.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Role Error Message - Shows directly under the role selection and STAYS VISIBLE */}
               {roleError && (
                 <div className="mt-2 p-4 bg-red-500/20 border-2 border-red-500/50 rounded-lg animate-in fade-in duration-300 sticky">
@@ -381,7 +424,7 @@ const Auth = () => {
               )}
               
               {/* Role description - only show if no error */}
-              {!roleError && !isCheckingRole && (
+              {!roleError && !isCheckingRole && !roleCheckUnavailable && (
                 <div className="mt-2 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
                   <p className="text-xs text-slate-300">
                     {getRoleDescription(role)}

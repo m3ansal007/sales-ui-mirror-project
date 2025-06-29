@@ -19,10 +19,32 @@ Deno.serve(async (req) => {
       throw new Error('Email is required');
     }
 
+    // Check if required environment variables are available
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing environment variables:', {
+        hasUrl: !!supabaseUrl,
+        hasServiceKey: !!supabaseServiceKey
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Edge function configuration error: Missing required environment variables',
+          details: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured in the Supabase dashboard'
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Create Supabase admin client
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      supabaseServiceKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -62,7 +84,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in check-user-role function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        type: 'EDGE_FUNCTION_ERROR'
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
