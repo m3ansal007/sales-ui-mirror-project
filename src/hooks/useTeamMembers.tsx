@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,12 +73,12 @@ export const useTeamMembers = () => {
           
           // Try to sync the team member
           try {
-            const { data: syncResult, error: syncError } = await supabase.rpc('force_sync_team_member', {
-              member_email: member.email
+            const { data: syncResult, error: syncError } = await supabase.functions.invoke('force_sync_team_member', {
+              body: { member_email: member.email }
             });
             
             if (!syncError && syncResult) {
-              // Explicitly handle the RPC return type
+              // Explicitly handle the function return type
               const resultString = syncResult && typeof syncResult === 'string' 
                 ? syncResult 
                 : syncResult 
@@ -411,13 +412,13 @@ export const useTeamMembers = () => {
   // Debug function to check specific team member
   const debugTeamMember = async (email: string) => {
     try {
-      const { data, error } = await supabase.rpc('debug_team_member_data', {
-        member_email: email
+      const { data, error } = await supabase.functions.invoke('debug_team_member_data', {
+        body: { member_email: email }
       });
       
       if (!error && data) {
         console.log(`🔍 Debug info for ${email}:`, data);
-        // Explicitly handle the RPC return type
+        // Explicitly handle the function return type
         return data && typeof data === 'string' 
           ? data 
           : data 
@@ -440,3 +441,4 @@ export const useTeamMembers = () => {
     debugTeamMember,
   };
 };
+

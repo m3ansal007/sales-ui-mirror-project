@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,16 +45,20 @@ export const useLeads = () => {
     if (!user) return;
     
     try {
-      // Simplify the query building to avoid deep type inference
-      const baseQuery = supabase.from('leads').select('*');
-      
-      let finalQuery;
+      // Use explicit typing to avoid deep type inference
+      let data: Lead[] | null = null;
+      let error: any = null;
       
       // If user is admin, show all leads (including those created by team members)
       // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         // Admin sees all leads in the system
-        finalQuery = baseQuery.order('created_at', { ascending: false });
+        const result = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+        data = result.data;
+        error = result.error;
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
@@ -64,18 +69,24 @@ export const useLeads = () => {
           .single();
 
         if (teamMember) {
-          finalQuery = baseQuery
+          const result = await supabase
+            .from('leads')
+            .select('*')
             .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`)
             .order('created_at', { ascending: false });
+          data = result.data;
+          error = result.error;
         } else {
           // Fallback to just their own leads
-          finalQuery = baseQuery
+          const result = await supabase
+            .from('leads')
+            .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
+          data = result.data;
+          error = result.error;
         }
       }
-
-      const { data, error } = await finalQuery;
 
       if (error) throw error;
       console.log('Fetched leads:', data?.length || 0);
@@ -421,3 +432,4 @@ export const useLeads = () => {
     refetch: fetchLeads,
   };
 };
+
