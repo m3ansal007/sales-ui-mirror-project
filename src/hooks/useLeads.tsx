@@ -22,7 +22,7 @@ export interface Lead {
 }
 
 // Simplified type for creating leads
-interface CreateLeadData {
+export interface CreateLeadData {
   name: string;
   email?: string;
   phone?: string;
@@ -40,17 +40,20 @@ export const useLeads = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (): Promise<void> => {
     if (!user) return;
     
     try {
-      let query = supabase.from('leads').select('*');
+      // Simplify the query building to avoid deep type inference
+      const baseQuery = supabase.from('leads').select('*');
+      
+      let finalQuery;
       
       // If user is admin, show all leads (including those created by team members)
       // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         // Admin sees all leads in the system
-        query = query.order('created_at', { ascending: false });
+        finalQuery = baseQuery.order('created_at', { ascending: false });
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
@@ -61,15 +64,18 @@ export const useLeads = () => {
           .single();
 
         if (teamMember) {
-          query = query.or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`)
+          finalQuery = baseQuery
+            .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`)
             .order('created_at', { ascending: false });
         } else {
           // Fallback to just their own leads
-          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+          finalQuery = baseQuery
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
         }
       }
 
-      const { data, error } = await query;
+      const { data, error } = await finalQuery;
 
       if (error) throw error;
       console.log('Fetched leads:', data?.length || 0);
