@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,10 +68,17 @@ export const useTeamMembers = () => {
           const { data: rpcData, error: rpcError } = await supabase
             .rpc('get_user_by_email', { user_email: member.email });
 
-          if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
-            const typedData = rpcData as RpcResponse[];
-            authUserId = typedData[0].id;
-            console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+          if (!rpcError && rpcData) {
+            // Handle both array and single object responses
+            if (Array.isArray(rpcData) && rpcData.length > 0) {
+              authUserId = rpcData[0].id;
+            } else if (rpcData && typeof rpcData === 'object' && 'id' in rpcData) {
+              authUserId = (rpcData as any).id;
+            }
+            
+            if (authUserId) {
+              console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+            }
           } else {
             console.log(`⚠️ No auth user found for ${member.email}:`, rpcError);
             // Try to find user in profiles table as fallback

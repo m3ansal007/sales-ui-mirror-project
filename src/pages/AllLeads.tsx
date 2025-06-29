@@ -20,7 +20,7 @@ const AllLeads = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const selectAllCheckboxRef = useRef<HTMLButtonElement>(null);
+  const selectAllCheckboxRef = useRef<any>(null);
 
   // Handle URL parameters for status filtering
   useEffect(() => {
@@ -144,7 +144,12 @@ const AllLeads = () => {
   // Update indeterminate state
   useEffect(() => {
     if (selectAllCheckboxRef.current) {
-      selectAllCheckboxRef.current.indeterminate = isSomeSelected;
+      // Access the underlying input element within the Checkbox component
+      const checkboxElement = selectAllCheckboxRef.current.querySelector('input[type="checkbox"]') || 
+                             selectAllCheckboxRef.current.querySelector('[role="checkbox"]');
+      if (checkboxElement) {
+        checkboxElement.indeterminate = isSomeSelected;
+      }
     }
   }, [isSomeSelected]);
 
