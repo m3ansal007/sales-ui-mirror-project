@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +18,7 @@ export interface Lead {
   value?: number;
   created_at: string;
   updated_at: string;
+  user_id: string;
 }
 
 export const useLeads = () => {
@@ -147,7 +149,7 @@ export const useLeads = () => {
   }, [user, userRole, toast]);
 
   // Check for duplicate leads
-  const checkForDuplicate = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
+  const checkForDuplicate = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     const { name, email, phone } = leadData;
     
     // Find leads with the same name
@@ -183,7 +185,7 @@ export const useLeads = () => {
     return { isDuplicate: false };
   };
 
-  const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
+  const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     if (!user) {
       toast({
         title: "Error",

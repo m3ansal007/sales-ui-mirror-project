@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,7 +68,7 @@ export const useTeamMembers = () => {
               member_email: member.email
             });
             
-            if (!syncError && syncResult) {
+            if (!syncError && syncResult && typeof syncResult === 'string') {
               console.log(`🔄 Sync result for ${member.email}:`, syncResult);
               
               // If sync was successful, refetch the team member data
