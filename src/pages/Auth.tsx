@@ -17,8 +17,9 @@ const Auth = () => {
   const [showRoleMismatchWarning, setShowRoleMismatchWarning] = useState(false);
   const [lastAttemptedRole, setLastAttemptedRole] = useState('');
   const [userActualRole, setUserActualRole] = useState('');
+  const [isCheckingRole, setIsCheckingRole] = useState(false);
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, checkUserRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -27,6 +28,43 @@ const Auth = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Function to check user role before authentication
+  const checkRoleBeforeAuth = async (email: string, selectedRole: string) => {
+    if (!email || !isLogin) return { canProceed: true };
+
+    setIsCheckingRole(true);
+    try {
+      const { role: actualRole, error } = await checkUserRole(email);
+      
+      if (error) {
+        console.log('Could not verify role, proceeding with authentication');
+        return { canProceed: true };
+      }
+
+      if (actualRole && actualRole !== selectedRole) {
+        // Role mismatch detected - show warning and prevent authentication
+        setUserActualRole(actualRole);
+        setLastAttemptedRole(selectedRole);
+        setShowRoleMismatchWarning(true);
+        
+        toast({
+          title: "🚫 Access Denied - Wrong Role",
+          description: `This account is registered as ${actualRole}. Please select the correct role.`,
+          variant: "destructive",
+        });
+        
+        return { canProceed: false, actualRole, attemptedRole: selectedRole };
+      }
+
+      return { canProceed: true };
+    } catch (error) {
+      console.error('Error checking role:', error);
+      return { canProceed: true }; // Allow authentication if role check fails
+    } finally {
+      setIsCheckingRole(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,14 +87,26 @@ const Auth = () => {
       return;
     }
 
-    setLoading(true);
     // Clear any previous role mismatch warnings
     setShowRoleMismatchWarning(false);
+
+    // For login, check role before authentication
+    if (isLogin) {
+      const roleCheck = await checkRoleBeforeAuth(email, role);
+      
+      if (!roleCheck.canProceed) {
+        // Role mismatch detected - do not proceed with authentication
+        setLoading(false);
+        return;
+      }
+    }
+
+    setLoading(true);
 
     try {
       let result;
       if (isLogin) {
-        // For login, pass the selected role to verify authorization
+        // For login, we've already verified the role above
         result = await signIn(email, password, role);
       } else {
         // For signup, register with the selected role
@@ -64,25 +114,7 @@ const Auth = () => {
       }
 
       if (result.error) {
-        // Check if this is a role mismatch error
-        if (result.error.code === 'ROLE_MISMATCH') {
-          // Extract the actual role from the error
-          setUserActualRole(result.error.actualRole);
-          setLastAttemptedRole(result.error.attemptedRole);
-          setShowRoleMismatchWarning(true);
-          
-          // Show a specific toast for role mismatch
-          toast({
-            title: "🚫 Access Denied - Wrong Role",
-            description: `This account is registered as ${result.error.actualRole}. Please select the correct role.`,
-            variant: "destructive",
-          });
-          
-          // Don't show the generic error toast for role mismatch
-          return;
-        }
-        
-        // Show generic error toast for other errors
+        // Handle any remaining authentication errors
         toast({
           title: "Authentication Error",
           description: result.error.message,
@@ -273,7 +305,7 @@ const Auth = () => {
                   value={role}
                   onChange={(e) => handleRoleChange(e.target.value)}
                   className={`w-full bg-slate-800 border rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    showRoleMismatchWarning ? 'border-red-500 border-2' : 'border-slate-700'
+                    showRoleMismatchWarning ? 'border-red-500 border-2 animate-pulse' : 'border-slate-700'
                   }`}
                   required
                 >
@@ -307,10 +339,12 @@ const Auth = () => {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || isCheckingRole}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              {loading ? 'Processing...' : (isLogin ? `Sign In as ${role}` : `Create ${role} Account`)}
+              {loading ? 'Processing...' : 
+               isCheckingRole ? 'Verifying Role...' :
+               (isLogin ? `Sign In as ${role}` : `Create ${role} Account`)}
             </Button>
           </form>
 

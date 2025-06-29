@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkUserRole = async (email: string) => {
     try {
-      // Use Supabase Admin API to check user role without authentication
+      // Use Supabase function to check user role without authentication
       const { data, error } = await supabase.functions.invoke('check-user-role', {
         body: { email }
       });
@@ -113,22 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string, selectedRole: string) => {
     try {
-      // First, check what role this email is registered with
-      const roleCheck = await checkUserRole(email);
-      
-      if (roleCheck.role && roleCheck.role !== selectedRole) {
-        // Return role mismatch error WITHOUT attempting authentication
-        return { 
-          error: { 
-            message: `Access denied. This account is registered as ${roleCheck.role}, not ${selectedRole}. Please select the correct role or contact your administrator.`,
-            code: 'ROLE_MISMATCH',
-            actualRole: roleCheck.role,
-            attemptedRole: selectedRole
-          } 
-        };
-      }
-
-      // If role matches or we couldn't determine the role, proceed with authentication
+      // At this point, role verification should have already been done in the Auth component
+      // So we can proceed directly with authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -138,16 +123,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
-      // Double-check role after successful authentication
+      // Double-check role after successful authentication (safety check)
       const userAuthorizedRole = data.user?.user_metadata?.authorized_role || data.user?.user_metadata?.role;
       
       if (userAuthorizedRole && userAuthorizedRole !== selectedRole) {
-        // Sign out the user immediately if role doesn't match
+        // This should not happen if pre-auth check worked, but just in case
         await supabase.auth.signOut();
         
         return { 
           error: { 
-            message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}. Please select the correct role or contact your administrator.`,
+            message: `Access denied. This account is registered as ${userAuthorizedRole}, not ${selectedRole}.`,
             code: 'ROLE_MISMATCH',
             actualRole: userAuthorizedRole,
             attemptedRole: selectedRole
