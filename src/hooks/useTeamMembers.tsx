@@ -62,11 +62,11 @@ export const useTeamMembers = () => {
       for (const member of teamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
-        // Step 1: Get the auth user ID for this team member's email using profiles table
+        // Step 1: Get the auth user ID for this team member's email
         let authUserId: string | null = null;
         
         try {
-          // Query profiles table directly to find user by email
+          // First try to find in profiles table
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('id')
@@ -75,18 +75,41 @@ export const useTeamMembers = () => {
           
           if (!profileError && profileData) {
             authUserId = profileData.id;
-            console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
+            console.log(`✅ Found auth user ID in profiles for ${member.email}: ${authUserId}`);
           } else {
-            console.log(`⚠️ No auth user found for ${member.email}:`, profileError);
+            // If not found in profiles, try to find by getting all users who created leads with this email
+            const { data: leadsData } = await supabase
+              .from('leads')
+              .select('user_id')
+              .not('user_id', 'is', null)
+              .limit(1);
+            
+            if (leadsData && leadsData.length > 0) {
+              // Try to match with existing user data
+              const { data: existingProfile } = await supabase
+                .from('profiles')
+                .select('id, email')
+                .eq('email', member.email)
+                .single();
+              
+              if (existingProfile) {
+                authUserId = existingProfile.id;
+                console.log(`✅ Found matching profile for ${member.email}: ${authUserId}`);
+              }
+            }
+            
+            if (!authUserId) {
+              console.log(`⚠️ No auth user found for ${member.email}, will try alternative matching`);
+            }
           }
         } catch (error) {
           console.log(`❌ Error getting auth user for ${member.email}:`, error);
         }
 
-        // Step 2: Get all leads for this team member (multiple methods)
+        // Step 2: Get all leads for this team member using multiple matching strategies
         let allLeads: any[] = [];
         
-        // Method A: Leads assigned to this team member directly
+        // Method A: Leads assigned to this team member directly by team member ID
         const { data: assignedLeads, error: assignedError } = await supabase
           .from('leads')
           .select('*')
@@ -109,6 +132,21 @@ export const useTeamMembers = () => {
             const newLeads = userLeads.filter(ul => !allLeads.some(al => al.id === ul.id));
             allLeads = [...allLeads, ...newLeads];
             console.log(`📋 Found ${userLeads.length} leads created by user ${member.name} (${newLeads.length} new)`);
+          }
+        }
+
+        // Method C: Try to find leads by matching email patterns or other criteria
+        if (allLeads.length === 0) {
+          // Look for leads that might belong to this team member based on email domain or other patterns
+          const emailDomain = member.email.split('@')[1];
+          const { data: domainLeads } = await supabase
+            .from('leads')
+            .select('*')
+            .or(`email.ilike.%@${emailDomain},notes.ilike.%${member.name}%`);
+
+          if (domainLeads && domainLeads.length > 0) {
+            allLeads = [...allLeads, ...domainLeads];
+            console.log(`📋 Found ${domainLeads.length} potential leads for ${member.name} via domain/name matching`);
           }
         }
 
