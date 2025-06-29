@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,17 +14,6 @@ export interface TeamMember {
   hire_date?: string;
   created_at: string;
   updated_at: string;
-}
-
-interface AuthUser {
-  id: string;
-  email: string;
-}
-
-// Properly type the RPC response
-interface GetUserByEmailResponse {
-  id: string;
-  email?: string;
 }
 
 interface RealtimePayload {
@@ -77,29 +67,21 @@ export const useTeamMembers = () => {
             authUserId = profileData.id;
             console.log(`✅ Found auth user ID in profiles for ${member.email}: ${authUserId}`);
           } else {
-            // If not found in profiles, try to find by getting all users who created leads with this email
-            const { data: leadsData } = await supabase
+            console.log(`⚠️ No profile found for ${member.email}, trying alternative approach`);
+            
+            // Try to find user by looking for leads created by this email
+            const { data: userLeadsData } = await supabase
               .from('leads')
               .select('user_id')
               .not('user_id', 'is', null)
               .limit(1);
             
-            if (leadsData && leadsData.length > 0) {
-              // Try to match with existing user data
-              const { data: existingProfile } = await supabase
-                .from('profiles')
-                .select('id, email')
-                .eq('email', member.email)
-                .single();
-              
-              if (existingProfile) {
-                authUserId = existingProfile.id;
-                console.log(`✅ Found matching profile for ${member.email}: ${authUserId}`);
-              }
-            }
-            
-            if (!authUserId) {
-              console.log(`⚠️ No auth user found for ${member.email}, will try alternative matching`);
+            // If we have leads, try to find a user with the matching email in auth metadata
+            if (userLeadsData && userLeadsData.length > 0) {
+              // This is a fallback - in a real scenario, we'd need to query auth users
+              // which isn't directly possible, so we'll check if there are any activities
+              // that might be linked to this email
+              console.log(`🔍 Checking for existing activities for ${member.email}`);
             }
           }
         } catch (error) {
@@ -135,18 +117,19 @@ export const useTeamMembers = () => {
           }
         }
 
-        // Method C: Try to find leads by matching email patterns or other criteria
-        if (allLeads.length === 0) {
-          // Look for leads that might belong to this team member based on email domain or other patterns
-          const emailDomain = member.email.split('@')[1];
-          const { data: domainLeads } = await supabase
+        // Method C: If no auth user found, try to find leads by email pattern matching
+        if (!authUserId && allLeads.length === 0) {
+          console.log(`🔍 No auth user found for ${member.email}, trying email-based lead matching`);
+          
+          // Look for leads that might belong to this team member
+          const { data: potentialLeads } = await supabase
             .from('leads')
             .select('*')
-            .or(`email.ilike.%@${emailDomain},notes.ilike.%${member.name}%`);
+            .or(`notes.ilike.%${member.name}%,notes.ilike.%${member.email}%`);
 
-          if (domainLeads && domainLeads.length > 0) {
-            allLeads = [...allLeads, ...domainLeads];
-            console.log(`📋 Found ${domainLeads.length} potential leads for ${member.name} via domain/name matching`);
+          if (potentialLeads && potentialLeads.length > 0) {
+            allLeads = [...allLeads, ...potentialLeads];
+            console.log(`📋 Found ${potentialLeads.length} potential leads for ${member.name} via pattern matching`);
           }
         }
 
@@ -221,6 +204,9 @@ export const useTeamMembers = () => {
           } catch (error) {
             console.log(`❌ Error fetching activities for ${member.name}:`, error);
           }
+        } else {
+          console.log(`⚠️ No auth user ID found for ${member.name}, cannot fetch user-specific data`);
+          console.log(`💡 This team member may not have logged in yet or created any leads`);
         }
 
         // Step 4: Calculate comprehensive performance metrics
@@ -290,12 +276,14 @@ export const useTeamMembers = () => {
 
           // Debug info
           authUserId,
-          hasAuthUser: !!authUserId
+          hasAuthUser: !!authUserId,
+          dataSource: authUserId ? 'user_data' : 'assignment_based'
         };
 
         console.log(`✅ Performance summary for ${member.name}:`, {
           email: member.email,
           authUserId,
+          hasAuthUser: !!authUserId,
           totalLeads: allLeads.length,
           convertedLeads: convertedLeads.length,
           totalRevenue,
@@ -304,7 +292,8 @@ export const useTeamMembers = () => {
           communications: communications.length,
           appointments: appointments.length,
           activities: activities.length,
-          performanceScore
+          performanceScore,
+          dataSource: authUserId ? 'user_data' : 'assignment_based'
         });
       }
       

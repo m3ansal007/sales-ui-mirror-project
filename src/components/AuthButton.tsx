@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -68,9 +69,9 @@ export const AuthButton = () => {
             <Shield className="w-3 h-3" />
             {userRole || 'Sales Associate'}
           </div>
-          {getAuthorizedRole() && (
+          {getAuthorizedRole(user) && (
             <div className="text-xs text-slate-500">
-              Authorized: {getAuthorizedRole()}
+              Authorized: {getAuthorizedRole(user)}
             </div>
           )}
         </div>
@@ -86,26 +87,4 @@ export const AuthButton = () => {
       </Button>
     </div>
   );
-};
-
-const getRoleIcon = (role: string | null) => {
-  switch (role) {
-    case 'Admin': return <Crown className="w-4 h-4 text-purple-400" />;
-    case 'Sales Manager': return <BarChart3 className="w-4 h-4 text-blue-400" />;
-    case 'Sales Associate': return <Briefcase className="w-4 h-4 text-green-400" />;
-    default: return <User className="w-4 h-4" />;
-  }
-};
-
-const getRoleColor = (role: string | null) => {
-  switch (role) {
-    case 'Admin': return 'text-purple-400';
-    case 'Sales Manager': return 'text-blue-400';
-    case 'Sales Associate': return 'text-green-400';
-    default: return 'text-slate-400';
-  }
-};
-
-const getAuthorizedRole = (user: any) => {
-  return user?.user_metadata?.authorized_role || user?.user_metadata?.role;
 };
