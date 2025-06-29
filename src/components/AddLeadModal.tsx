@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
+  onSubmit: (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<boolean>;
 }
 
 export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) => {
