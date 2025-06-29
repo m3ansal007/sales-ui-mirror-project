@@ -66,8 +66,12 @@ export const useTeamMembers = () => {
         let authUserId: string | null = null;
         
         try {
+          // Type the RPC call properly
           const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_user_by_email', { user_email: member.email });
+            .rpc('get_user_by_email', { user_email: member.email as string }) as {
+              data: GetUserByEmailResponse[] | GetUserByEmailResponse | null;
+              error: any;
+            };
 
           if (!rpcError && rpcData) {
             // Handle both array and single object responses
