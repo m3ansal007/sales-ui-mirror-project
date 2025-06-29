@@ -247,6 +247,28 @@ export const useLeads = () => {
         teamMemberId: data.assigned_team_member_id,
         userEmail: user.email
       });
+
+      // Manually create activity record to ensure it's logged
+      try {
+        const { error: activityError } = await supabase
+          .from('activities')
+          .insert({
+            user_id: user.id,
+            lead_id: data.id,
+            type: 'created',
+            title: 'New lead added',
+            description: data.name,
+            metadata: data
+          });
+
+        if (activityError) {
+          console.error('⚠️ Failed to create activity record:', activityError);
+        } else {
+          console.log('✅ Activity record created for new lead');
+        }
+      } catch (activityErr) {
+        console.error('⚠️ Error creating activity record:', activityErr);
+      }
       
       // Don't immediately add to state - let the real-time subscription handle it
       // This prevents duplicate entries and ensures proper real-time behavior

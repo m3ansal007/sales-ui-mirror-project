@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,7 +46,7 @@ export const useTeamMembers = () => {
       for (const member of teamData || []) {
         console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
         
-        // Step 1: Get the auth user ID for this team member's email
+        // Step 1: Get the auth user ID for this team member's email using proper RPC call
         let authUserId = null;
         try {
           const { data: authUserData, error: authUserError } = await supabase
@@ -55,7 +56,18 @@ export const useTeamMembers = () => {
             authUserId = authUserData[0].id;
             console.log(`✅ Found auth user ID for ${member.email}: ${authUserId}`);
           } else {
-            console.log(`⚠️ No auth user found for ${member.email}`);
+            console.log(`⚠️ No auth user found for ${member.email}:`, authUserError);
+            // Try to find user in profiles table as fallback
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', member.email)
+              .single();
+            
+            if (profileData) {
+              authUserId = profileData.id;
+              console.log(`✅ Found user in profiles table for ${member.email}: ${authUserId}`);
+            }
           }
         } catch (error) {
           console.log(`❌ Error getting auth user for ${member.email}:`, error);
@@ -90,18 +102,6 @@ export const useTeamMembers = () => {
           }
         }
 
-        // Method C: Leads with assigned_to matching email (legacy support)
-        const { data: emailAssignedLeads, error: emailError } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('assigned_to', member.email);
-
-        if (!emailError && emailAssignedLeads) {
-          const newLeads = emailAssignedLeads.filter(el => !allLeads.some(al => al.id === el.id));
-          allLeads = [...allLeads, ...newLeads];
-          console.log(`📋 Found ${emailAssignedLeads.length} leads assigned by email to ${member.name} (${newLeads.length} new)`);
-        }
-
         console.log(`📊 Total unique leads for ${member.name}: ${allLeads.length}`);
 
         // Step 3: Get tasks, communications, appointments, and activities
@@ -111,51 +111,67 @@ export const useTeamMembers = () => {
         let activities: any[] = [];
 
         if (authUserId) {
-          // Get tasks
-          const { data: tasksData, error: tasksError } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('user_id', authUserId);
+          // Get tasks with proper error handling
+          try {
+            const { data: tasksData, error: tasksError } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('user_id', authUserId);
 
-          if (!tasksError) {
-            tasks = tasksData || [];
-            console.log(`📋 Found ${tasks.length} tasks for ${member.name}`);
+            if (!tasksError && tasksData) {
+              tasks = tasksData;
+              console.log(`📋 Found ${tasks.length} tasks for ${member.name}`);
+            }
+          } catch (error) {
+            console.log(`❌ Error fetching tasks for ${member.name}:`, error);
           }
 
-          // Get communications
-          const { data: commsData, error: commsError } = await supabase
-            .from('communications')
-            .select('*')
-            .eq('user_id', authUserId);
+          // Get communications with proper error handling
+          try {
+            const { data: commsData, error: commsError } = await supabase
+              .from('communications')
+              .select('*')
+              .eq('user_id', authUserId);
 
-          if (!commsError) {
-            communications = commsData || [];
-            console.log(`📞 Found ${communications.length} communications for ${member.name}`);
+            if (!commsError && commsData) {
+              communications = commsData;
+              console.log(`📞 Found ${communications.length} communications for ${member.name}`);
+            }
+          } catch (error) {
+            console.log(`❌ Error fetching communications for ${member.name}:`, error);
           }
 
-          // Get appointments
-          const { data: apptsData, error: apptsError } = await supabase
-            .from('appointments')
-            .select('*')
-            .eq('user_id', authUserId);
+          // Get appointments with proper error handling
+          try {
+            const { data: apptsData, error: apptsError } = await supabase
+              .from('appointments')
+              .select('*')
+              .eq('user_id', authUserId);
 
-          if (!apptsError) {
-            appointments = apptsData || [];
-            console.log(`📅 Found ${appointments.length} appointments for ${member.name}`);
+            if (!apptsError && apptsData) {
+              appointments = apptsData;
+              console.log(`📅 Found ${appointments.length} appointments for ${member.name}`);
+            }
+          } catch (error) {
+            console.log(`❌ Error fetching appointments for ${member.name}:`, error);
           }
 
-          // Get activities
-          const { data: activitiesData, error: activitiesError } = await supabase
-            .from('activities')
-            .select('*')
-            .eq('user_id', authUserId)
-            .order('created_at', { ascending: false })
-            .limit(10);
+          // Get activities with proper error handling
+          try {
+            const { data: activitiesData, error: activitiesError } = await supabase
+              .from('activities')
+              .select('*')
+              .eq('user_id', authUserId)
+              .order('created_at', { ascending: false })
+              .limit(10);
 
-          if (!activitiesError) {
-            activities = activitiesData || [];
-            activitiesData[member.id] = activities;
-            console.log(`🎯 Found ${activities.length} activities for ${member.name}`);
+            if (!activitiesError && activitiesData) {
+              activities = activitiesData;
+              activitiesData[member.id] = activities;
+              console.log(`🎯 Found ${activities.length} activities for ${member.name}`);
+            }
+          } catch (error) {
+            console.log(`❌ Error fetching activities for ${member.name}:`, error);
           }
         }
 
@@ -222,7 +238,11 @@ export const useTeamMembers = () => {
             : 'No activity',
             
           // Performance score
-          performanceScore
+          performanceScore,
+
+          // Debug info
+          authUserId,
+          hasAuthUser: !!authUserId
         };
 
         console.log(`✅ Performance summary for ${member.name}:`, {
@@ -263,12 +283,12 @@ export const useTeamMembers = () => {
     console.log('🚀 Setting up team performance tracking...');
     fetchTeamMembers();
 
-    // Subscribe to all relevant table changes with more aggressive refresh
+    // Subscribe to all relevant table changes
     const leadsChannel = supabase
       .channel('team-performance-leads')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
         console.log('📋 Lead change detected:', payload.eventType, payload.new?.name || payload.old?.name);
-        setTimeout(fetchTeamMembers, 500); // Slight delay to ensure data consistency
+        setTimeout(fetchTeamMembers, 1000); // Delay to ensure data consistency
       })
       .subscribe();
 
@@ -276,7 +296,7 @@ export const useTeamMembers = () => {
       .channel('team-performance-tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
         console.log('📋 Task change detected:', payload.eventType);
-        setTimeout(fetchTeamMembers, 500);
+        setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
@@ -284,7 +304,7 @@ export const useTeamMembers = () => {
       .channel('team-performance-communications')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload) => {
         console.log('📞 Communication change detected:', payload.eventType);
-        setTimeout(fetchTeamMembers, 500);
+        setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
@@ -292,7 +312,7 @@ export const useTeamMembers = () => {
       .channel('team-performance-appointments')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
         console.log('📅 Appointment change detected:', payload.eventType);
-        setTimeout(fetchTeamMembers, 500);
+        setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
@@ -300,7 +320,7 @@ export const useTeamMembers = () => {
       .channel('team-performance-activities')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
         console.log('🎯 Activity change detected:', payload.eventType);
-        setTimeout(fetchTeamMembers, 500);
+        setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
@@ -308,7 +328,7 @@ export const useTeamMembers = () => {
       .channel('team-members-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload) => {
         console.log('👥 Team member change detected:', payload.eventType);
-        setTimeout(fetchTeamMembers, 500);
+        setTimeout(fetchTeamMembers, 1000);
       })
       .subscribe();
 
