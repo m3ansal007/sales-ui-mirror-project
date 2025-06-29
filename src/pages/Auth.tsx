@@ -81,20 +81,14 @@ const Auth = () => {
     } catch (error) {
       console.error('Error checking role:', error);
       
-      // If it's a network error, allow authentication to proceed with a warning
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        setRoleCheckUnavailable(true);
-        toast({
-          title: "⚠️ Role Verification Unavailable",
-          description: "Cannot verify role due to network issues. You can still login, but please ensure you're selecting the correct role.",
-          variant: "default",
-        });
-        return { canProceed: true };
-      }
-      
-      setRoleError('⚠️ Could not verify role. Please try again.');
-      setPreventSubmit(true);
-      return { canProceed: false }; // Don't allow authentication if role check fails
+      // For any errors during role checking, allow authentication to proceed with a warning
+      setRoleCheckUnavailable(true);
+      toast({
+        title: "⚠️ Role Verification Unavailable",
+        description: "Cannot verify role at the moment. You can still login, but please ensure you're selecting the correct role.",
+        variant: "default",
+      });
+      return { canProceed: true };
     } finally {
       setIsCheckingRole(false);
     }
@@ -145,9 +139,8 @@ const Auth = () => {
         }
       } catch (error) {
         console.error('Role check failed:', error);
-        setRoleError('⚠️ Could not verify role. Please try again.');
-        setPreventSubmit(true);
-        return;
+        // Allow authentication to proceed even if role check fails
+        console.log('Role check failed, but proceeding with authentication');
       }
     }
 
@@ -368,7 +361,7 @@ const Auth = () => {
                     <div>
                       <p className="text-yellow-200 text-sm font-medium">Role Verification Unavailable</p>
                       <p className="text-yellow-100 text-xs mt-1">
-                        Cannot verify your role at the moment. Please ensure you're selecting the correct role for your account.
+                        Cannot verify your role at the moment. You can still login, but please ensure you're selecting the correct role for your account.
                       </p>
                     </div>
                   </div>

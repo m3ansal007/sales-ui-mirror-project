@@ -87,25 +87,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkUserRole = async (email: string) => {
     try {
+      console.log('Checking user role for:', email);
+      
       // Use Supabase function to check user role without authentication
       const { data, error } = await supabase.functions.invoke('check-user-role', {
         body: { email }
       });
 
       if (error) {
-        console.error('Error checking user role:', error);
+        console.error('Error from Edge Function:', error);
         
-        // Check if this is an environment configuration error
-        if (error.message?.includes('Missing required environment variables') || 
-            error.message?.includes('configuration error')) {
+        // Handle different types of errors from the Edge Function
+        if (error.context?.body) {
+          const errorBody = error.context.body;
+          
+          // Check if this is a configuration error
+          if (errorBody.type === 'CONFIG_ERROR') {
+            return { 
+              role: null, 
+              error: {
+                message: 'Role verification is temporarily unavailable. Please contact your administrator.',
+                type: 'CONFIG_ERROR',
+                details: errorBody.details || errorBody.error
+              }
+            };
+          }
+          
+          // Check if this is a network error
+          if (errorBody.type === 'NETWORK_ERROR') {
+            console.log('Network error during role check, allowing authentication to proceed');
+            return { role: null, error: null };
+          }
+          
+          // Check if user was not found
+          if (errorBody.type === 'USER_NOT_FOUND') {
+            console.log('User not found in role check, allowing authentication to proceed');
+            return { role: null, error: null };
+          }
+          
+          // For other specific errors, return them
           return { 
             role: null, 
             error: {
-              message: 'Role verification is temporarily unavailable. Please contact your administrator.',
-              type: 'CONFIG_ERROR',
-              details: error.message
+              message: errorBody.error || 'Role verification failed',
+              type: errorBody.type || 'UNKNOWN_ERROR',
+              details: errorBody.details
             }
           };
+        }
+        
+        // Handle generic function invocation errors
+        if (error.message?.includes('Failed to send a request to the Edge Function')) {
+          console.log('Edge Function request failed, allowing authentication to proceed');
+          return { role: null, error: null };
         }
         
         // For other errors, allow authentication to proceed
@@ -113,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { role: null, error: null };
       }
 
+      console.log('Role check response:', data);
       return { role: data?.role || null, error: null };
     } catch (error) {
       console.error('Error in checkUserRole:', error);
@@ -123,7 +158,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { role: null, error: null };
       }
       
-      return { role: null, error };
+      // For any other unexpected errors, allow authentication to proceed
+      console.log('Unexpected error during role check, allowing authentication to proceed:', error);
+      return { role: null, error: null };
     }
   };
 
