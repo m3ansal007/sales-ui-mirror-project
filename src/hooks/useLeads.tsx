@@ -32,13 +32,26 @@ export const useLeads = () => {
       let query = supabase.from('leads').select('*');
       
       // If user is admin, show all leads (including those created by team members)
-      // If user is sales associate, show only their own leads
+      // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         // Admin sees all leads in the system
         query = query.order('created_at', { ascending: false });
       } else {
-        // Sales associates see only their own leads
-        query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+        // Sales associates see their own leads + leads assigned to them
+        // First get the team member ID for this user
+        const { data: teamMember } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .single();
+
+        if (teamMember) {
+          query = query.or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`)
+            .order('created_at', { ascending: false });
+        } else {
+          // Fallback to just their own leads
+          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+        }
       }
 
       const { data, error } = await query;
@@ -204,7 +217,7 @@ export const useLeads = () => {
         notes: leadData.notes || null,
         value: leadData.value ? Number(leadData.value) : null,
         user_id: user.id,
-        // The assigned_team_member_id will be set automatically by the trigger
+        assigned_team_member_id: leadData.assigned_team_member_id || null
       };
 
       console.log('📝 Creating lead with data:', {
@@ -238,16 +251,18 @@ export const useLeads = () => {
         leadId: data.id,
         leadName: data.name,
         userId: data.user_id,
-        teamMemberId: data.assigned_team_member_id,
+        assignedTeamMemberId: data.assigned_team_member_id,
         userEmail: user.email
       });
       
-      // Don't immediately add to state - let the real-time subscription handle it
-      // This prevents duplicate entries and ensures proper real-time behavior
+      // If lead is assigned to a team member, show appropriate message
+      const assignmentMessage = data.assigned_team_member_id 
+        ? "Lead created and assigned successfully"
+        : "Lead created successfully";
       
       toast({
         title: "Success",
-        description: "Lead created successfully",
+        description: assignmentMessage,
       });
       return true;
     } catch (error) {

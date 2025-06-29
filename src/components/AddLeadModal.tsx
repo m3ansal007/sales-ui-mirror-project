@@ -1,6 +1,9 @@
-import { X, User, Mail, Phone, MapPin, Users, FileText } from "lucide-react";
-import { useState } from "react";
+
+import { X, User, Mail, Phone, MapPin, Users, FileText, UserPlus } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Lead } from "@/hooks/useLeads";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AddLeadModalProps {
   isOpen: boolean;
@@ -17,9 +20,15 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     source: 'Website',
     status: 'New',
     notes: '',
-    value: ''
+    value: '',
+    assigned_team_member_id: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { teamMembers, loading: teamLoading } = useTeamMembers();
+  const { userRole } = useAuth();
+
+  // Check if user is admin or sales manager who can assign leads
+  const canAssignLeads = userRole === 'Admin' || userRole === 'Sales Manager';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +49,8 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
         source: formData.source || undefined,
         status: formData.status,
         notes: formData.notes.trim() || undefined,
-        value: formData.value && formData.value.trim() ? parseFloat(formData.value.trim()) : undefined
+        value: formData.value && formData.value.trim() ? parseFloat(formData.value.trim()) : undefined,
+        assigned_team_member_id: formData.assigned_team_member_id || undefined
       };
       
       console.log('Submitting lead data:', leadData);
@@ -55,7 +65,8 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           source: 'Website',
           status: 'New',
           notes: '',
-          value: ''
+          value: '',
+          assigned_team_member_id: ''
         });
         onClose();
         
@@ -205,6 +216,33 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
                 </select>
               </div>
             </div>
+
+            {/* Assign Lead Section - Only show for Admin/Sales Manager */}
+            {canAssignLeads && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  <UserPlus className="w-4 h-4 inline mr-1" />
+                  Assign Lead
+                </label>
+                <select
+                  name="assigned_team_member_id"
+                  value={formData.assigned_team_member_id}
+                  onChange={handleInputChange}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  disabled={isSubmitting || teamLoading}
+                >
+                  <option value="">Select team member (optional)</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} - {member.role}
+                    </option>
+                  ))}
+                </select>
+                {teamLoading && (
+                  <p className="text-xs text-slate-400 mt-1">Loading team members...</p>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">

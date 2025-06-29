@@ -291,7 +291,6 @@ export type Database = {
       }
       team_members: {
         Row: {
-          auth_user_id: string | null
           created_at: string
           email: string
           hire_date: string | null
@@ -305,7 +304,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          auth_user_id?: string | null
           created_at?: string
           email: string
           hire_date?: string | null
@@ -319,7 +317,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          auth_user_id?: string | null
           created_at?: string
           email?: string
           hire_date?: string | null
@@ -332,15 +329,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "team_members_auth_user_id_fkey"
-            columns: ["auth_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
