@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +44,7 @@ export const useLeads = () => {
     
     try {
       // Use explicit typing to avoid deep type inference
-      let data: Lead[] | null = null;
+      let data: any[] | null = null;
       let error: any = null;
       
       // If user is admin, show all leads (including those created by team members)
@@ -69,10 +67,12 @@ export const useLeads = () => {
           .single();
 
         if (teamMember) {
+          // Split the query to avoid complex type inference
+          const orFilter = `user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`;
           const result = await supabase
             .from('leads')
             .select('*')
-            .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMember.id}`)
+            .or(orFilter)
             .order('created_at', { ascending: false });
           data = result.data;
           error = result.error;
@@ -90,7 +90,7 @@ export const useLeads = () => {
 
       if (error) throw error;
       console.log('Fetched leads:', data?.length || 0);
-      setLeads(data || []);
+      setLeads((data || []) as Lead[]);
     } catch (error) {
       console.error('Error fetching leads:', error);
       toast({
@@ -432,4 +432,3 @@ export const useLeads = () => {
     refetch: fetchLeads,
   };
 };
-
