@@ -12,6 +12,7 @@ export interface Lead {
   source?: string;
   status: string;
   assigned_to?: string;
+  assigned_team_member_id?: string;
   notes?: string;
   value?: number;
   created_at: string;
@@ -182,6 +183,13 @@ export const useLeads = () => {
     }
 
     try {
+      // Get current user's team member record to link the lead
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
       const cleanData = {
         name: leadData.name,
         email: leadData.email || null,
@@ -191,10 +199,12 @@ export const useLeads = () => {
         status: leadData.status || 'New',
         notes: leadData.notes || null,
         value: leadData.value ? Number(leadData.value) : null,
-        user_id: user.id
+        user_id: user.id,
+        assigned_to: user.email, // Assign to current user's email
+        assigned_team_member_id: teamMember?.id || null // Link to team member if exists
       };
 
-      console.log('Creating lead:', cleanData);
+      console.log('Creating lead with team member assignment:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')

@@ -1,4 +1,4 @@
-import { Users, Plus, Mail, Phone, Trash2, UserCheck, UserX } from "lucide-react";
+import { Users, Plus, Mail, Phone, Trash2, UserCheck, UserX, TrendingUp, Target } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
 import AddTeamMemberModal from "@/components/AddTeamMemberModal";
@@ -47,6 +47,13 @@ const Team = () => {
   // Check if user has permission to manage team
   const canManageTeam = userRole === 'Admin' || userRole === 'Sales Manager';
 
+  // Calculate total team performance
+  const totalTeamStats = Object.values(memberPerformance).reduce((acc, perf) => ({
+    totalLeads: acc.totalLeads + (perf.leadsAssigned || 0),
+    totalConverted: acc.totalConverted + (perf.leadsConverted || 0),
+    totalRevenue: acc.totalRevenue + (perf.totalRevenue || 0)
+  }), { totalLeads: 0, totalConverted: 0, totalRevenue: 0 });
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
       <Sidebar />
@@ -64,6 +71,60 @@ const Team = () => {
               </div>
             )}
           </div>
+
+          {/* Team Performance Overview */}
+          {teamMembers.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Total Team Leads</p>
+                  <p className="text-white text-2xl font-bold mb-1">{totalTeamStats.totalLeads}</p>
+                  <p className="text-blue-400 text-xs">Across all team members</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-green-600">
+                    <Target className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Total Conversions</p>
+                  <p className="text-white text-2xl font-bold mb-1">{totalTeamStats.totalConverted}</p>
+                  <p className="text-green-400 text-xs">
+                    {totalTeamStats.totalLeads > 0 
+                      ? `${Math.round((totalTeamStats.totalConverted / totalTeamStats.totalLeads) * 100)}% conversion rate`
+                      : 'No leads yet'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Total Revenue</p>
+                  <p className="text-white text-2xl font-bold mb-1">
+                    ₹{totalTeamStats.totalRevenue >= 1000 
+                      ? `${(totalTeamStats.totalRevenue / 1000).toFixed(1)}k` 
+                      : totalTeamStats.totalRevenue.toLocaleString()
+                    }
+                  </p>
+                  <p className="text-purple-400 text-xs">Team generated revenue</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-between items-center mb-6">
             <div className="flex gap-4">
@@ -140,6 +201,11 @@ const Team = () => {
                 const performance = memberPerformance[member.id] || {
                   leadsAssigned: 0,
                   leadsConverted: 0,
+                  leadsNew: 0,
+                  leadsContacted: 0,
+                  leadsFollowUp: 0,
+                  leadsLost: 0,
+                  totalRevenue: 0,
                   tasksCompleted: 0,
                   tasksTotal: 0
                 };
@@ -195,21 +261,46 @@ const Team = () => {
                       )}
                     </div>
 
+                    {/* Enhanced Performance Metrics */}
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
                       <div>
-                        <p className="text-slate-400 text-xs">Leads Assigned</p>
+                        <p className="text-slate-400 text-xs">Total Leads</p>
                         <p className="text-white font-medium">{performance.leadsAssigned}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400 text-xs">Leads Converted</p>
+                        <p className="text-slate-400 text-xs">Converted</p>
                         <p className="text-green-400 font-medium">{performance.leadsConverted}</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="grid grid-cols-4 gap-2 pt-2">
+                      <div className="text-center">
+                        <p className="text-slate-400 text-xs">New</p>
+                        <p className="text-blue-400 font-medium text-sm">{performance.leadsNew}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-400 text-xs">Contacted</p>
+                        <p className="text-yellow-400 font-medium text-sm">{performance.leadsContacted}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-400 text-xs">Follow-up</p>
+                        <p className="text-orange-400 font-medium text-sm">{performance.leadsFollowUp}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-400 text-xs">Lost</p>
+                        <p className="text-red-400 font-medium text-sm">{performance.leadsLost}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-3">
                       <div>
-                        <p className="text-slate-400 text-xs">Tasks Completed</p>
-                        <p className="text-blue-400 font-medium">{performance.tasksCompleted}/{performance.tasksTotal}</p>
+                        <p className="text-slate-400 text-xs">Revenue</p>
+                        <p className="text-green-400 font-medium">
+                          ₹{performance.totalRevenue >= 1000 
+                            ? `${(performance.totalRevenue / 1000).toFixed(1)}k` 
+                            : performance.totalRevenue.toLocaleString()
+                          }
+                        </p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-xs">Conversion Rate</p>
@@ -238,6 +329,13 @@ const Team = () => {
                         {member.role === 'Sales Associate' && '💼 Individual lead and task management'}
                       </p>
                     </div>
+
+                    {/* Debug info for admins */}
+                    {userRole === 'Admin' && (
+                      <div className="mt-2 p-2 bg-slate-800/30 rounded text-xs text-slate-500">
+                        Debug: Member ID: {member.id.slice(0, 8)}... | Email: {member.email}
+                      </div>
+                    )}
                   </div>
                 );
               })}
