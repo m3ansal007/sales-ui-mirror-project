@@ -14,11 +14,9 @@ const Auth = () => {
   const [role, setRole] = useState('Sales Associate');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showRoleMismatchWarning, setShowRoleMismatchWarning] = useState(false);
-  const [lastAttemptedRole, setLastAttemptedRole] = useState('');
-  const [userActualRole, setUserActualRole] = useState('');
   const [isCheckingRole, setIsCheckingRole] = useState(false);
   const [roleError, setRoleError] = useState('');
+  const [userActualRole, setUserActualRole] = useState('');
   
   const { signIn, signUp, user, checkUserRole } = useAuth();
   const navigate = useNavigate();
@@ -48,8 +46,6 @@ const Auth = () => {
       if (actualRole && actualRole !== selectedRole) {
         // Role mismatch detected - show error and prevent authentication
         setUserActualRole(actualRole);
-        setLastAttemptedRole(selectedRole);
-        setShowRoleMismatchWarning(true);
         setRoleError(`❌ Wrong role selected! This account is registered as ${actualRole}, not ${selectedRole}.`);
         
         toast({
@@ -73,6 +69,7 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent any event bubbling that might cause page reload
     
     if (!email || !password) {
       toast({
@@ -92,16 +89,22 @@ const Auth = () => {
       return;
     }
 
-    // Clear any previous role mismatch warnings and errors
-    setShowRoleMismatchWarning(false);
+    // Clear any previous role errors
     setRoleError('');
 
     // For login, check role before authentication
     if (isLogin) {
-      const roleCheck = await checkRoleBeforeAuth(email, role);
-      
-      if (!roleCheck.canProceed) {
-        // Role mismatch detected - do not proceed with authentication
+      try {
+        const roleCheck = await checkRoleBeforeAuth(email, role);
+        
+        if (!roleCheck.canProceed) {
+          // Role mismatch detected - do not proceed with authentication
+          // Error message is already set in checkRoleBeforeAuth
+          return;
+        }
+      } catch (error) {
+        console.error('Role check failed:', error);
+        setRoleError('⚠️ Could not verify role. Please try again.');
         return;
       }
     }
@@ -120,14 +123,19 @@ const Auth = () => {
 
       if (result.error) {
         // Handle any remaining authentication errors
+        if (result.error.code === 'ROLE_MISMATCH') {
+          // This shouldn't happen since we check before, but just in case
+          setUserActualRole(result.error.actualRole);
+          setRoleError(`❌ Wrong role selected! This account is registered as ${result.error.actualRole}, not ${result.error.attemptedRole}.`);
+        }
+        
         toast({
           title: "Authentication Error",
           description: result.error.message,
           variant: "destructive",
         });
       } else {
-        // Clear any warnings on successful login/signup
-        setShowRoleMismatchWarning(false);
+        // Clear any errors on successful login/signup
         setRoleError('');
         
         if (!isLogin) {
@@ -156,16 +164,15 @@ const Auth = () => {
 
   const handleRoleChange = (newRole: string) => {
     setRole(newRole);
-    // Clear role mismatch warning and error when user changes role
-    if (showRoleMismatchWarning || roleError) {
-      setShowRoleMismatchWarning(false);
+    // Clear role error when user changes role
+    if (roleError) {
       setRoleError('');
+      setUserActualRole('');
     }
   };
 
   const handleCorrectRole = () => {
     setRole(userActualRole);
-    setShowRoleMismatchWarning(false);
     setRoleError('');
     toast({
       title: "Role Updated",
@@ -214,40 +221,6 @@ const Auth = () => {
               {isLogin ? 'Sign in to your account' : 'Sign up to get started'}
             </p>
           </div>
-
-          {/* Role Mismatch Warning - Shows BEFORE form submission */}
-          {showRoleMismatchWarning && isLogin && (
-            <div className="mb-6 p-4 bg-red-500/10 border-2 border-red-500/50 rounded-lg animate-pulse">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-red-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-red-300 text-sm font-bold mb-2">🚫 Access Denied - Wrong Role Selected</p>
-                  <p className="text-red-200 text-sm mb-3">
-                    You tried to login as <strong className="text-red-100">{lastAttemptedRole}</strong>, but this account is registered as <strong className="text-red-100">{userActualRole}</strong>.
-                  </p>
-                  <p className="text-red-200 text-xs mb-3">
-                    Please select the correct role below or contact your administrator if you believe this is an error.
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCorrectRole}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors font-medium"
-                    >
-                      ✅ Switch to {userActualRole}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowRoleMismatchWarning(false)}
-                      className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
@@ -312,11 +285,11 @@ const Auth = () => {
                   id="role"
                   value={role}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  className={`w-full bg-slate-800 border rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full bg-slate-800 border rounded-lg pl-10 pr-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
                     roleError ? 'border-red-500 border-2 animate-pulse' : 'border-slate-700'
                   }`}
                   required
-                  disabled={isCheckingRole}
+                  disabled={isCheckingRole || loading}
                 >
                   <option value="Admin">{getRoleIcon('Admin')} Admin</option>
                   <option value="Sales Manager">{getRoleIcon('Sales Manager')} Sales Manager</option>
@@ -326,17 +299,22 @@ const Auth = () => {
               
               {/* Role Error Message - Shows directly under the role selection */}
               {roleError && (
-                <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <p className="text-red-300 text-sm font-medium">{roleError}</p>
-                  {userActualRole && (
-                    <button
-                      type="button"
-                      onClick={handleCorrectRole}
-                      className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
-                    >
-                      Switch to {userActualRole}
-                    </button>
-                  )}
+                <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg animate-in fade-in duration-300">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-red-300 text-sm font-medium">{roleError}</p>
+                      {userActualRole && (
+                        <button
+                          type="button"
+                          onClick={handleCorrectRole}
+                          className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                        >
+                          ✅ Switch to {userActualRole}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               
@@ -351,7 +329,7 @@ const Auth = () => {
               )}
               
               {/* Role description - only show if no error */}
-              {!roleError && (
+              {!roleError && !isCheckingRole && (
                 <div className="mt-2 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
                   <p className="text-xs text-slate-300">
                     {getRoleDescription(role)}
@@ -390,10 +368,11 @@ const Auth = () => {
 
           <div className="mt-6 text-center">
             <button
+              type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                setShowRoleMismatchWarning(false); // Clear warning when switching modes
                 setRoleError(''); // Clear role error when switching modes
+                setUserActualRole('');
                 setEmail('');
                 setPassword('');
                 setFullName('');
