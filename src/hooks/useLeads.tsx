@@ -183,12 +183,20 @@ export const useLeads = () => {
     }
 
     try {
+      console.log('🔄 Creating lead for user:', user.email);
+      
       // Get current user's team member record to link the lead
-      const { data: teamMember } = await supabase
+      const { data: teamMember, error: teamMemberError } = await supabase
         .from('team_members')
         .select('id')
         .eq('email', user.email)
         .single();
+
+      if (teamMemberError) {
+        console.log('⚠️ No team member record found for user:', user.email, teamMemberError);
+      } else {
+        console.log('✅ Found team member record:', teamMember.id);
+      }
 
       const cleanData = {
         name: leadData.name,
@@ -200,12 +208,15 @@ export const useLeads = () => {
         notes: leadData.notes || null,
         value: leadData.value ? Number(leadData.value) : null,
         user_id: user.id,
-        // Fix: Don't assign email to assigned_to field (it expects UUID)
-        // Instead, only assign the team member ID if found
+        // Properly assign team member ID for tracking
         assigned_team_member_id: teamMember?.id || null
       };
 
-      console.log('Creating lead with proper UUID assignment:', cleanData);
+      console.log('📝 Creating lead with data:', {
+        ...cleanData,
+        user_email: user.email,
+        team_member_found: !!teamMember
+      });
 
       const { data, error } = await supabase
         .from('leads')
@@ -214,7 +225,7 @@ export const useLeads = () => {
         .single();
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('❌ Supabase error:', error);
         
         // Check if it's a duplicate error from the database
         if (error.message.includes('duplicate') || error.code === '23505') {
@@ -229,7 +240,13 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('Lead created successfully with proper team assignment:', data);
+      console.log('✅ Lead created successfully with team assignment:', {
+        leadId: data.id,
+        leadName: data.name,
+        userId: data.user_id,
+        teamMemberId: data.assigned_team_member_id,
+        userEmail: user.email
+      });
       
       // Don't immediately add to state - let the real-time subscription handle it
       // This prevents duplicate entries and ensures proper real-time behavior
@@ -240,7 +257,7 @@ export const useLeads = () => {
       });
       return true;
     } catch (error) {
-      console.error('Error creating lead:', error);
+      console.error('❌ Error creating lead:', error);
       toast({
         title: "Error",
         description: `Failed to create lead: ${error.message}`,
@@ -301,6 +318,7 @@ export const useLeads = () => {
 
           if (teamMember) {
             updateData.assigned_team_member_id = teamMember.id;
+            console.log('🔗 Assigning team member to lead during update:', teamMember.id);
           }
         }
       }
@@ -329,6 +347,12 @@ export const useLeads = () => {
       setLeads(prev => prev.map(lead => 
         lead.id === id ? { ...lead, ...updates } : lead
       ));
+      
+      console.log('✅ Lead updated successfully:', {
+        leadId: id,
+        updates,
+        teamMemberId: updateData.assigned_team_member_id
+      });
       
       toast({
         title: "Success",
