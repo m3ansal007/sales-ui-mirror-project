@@ -200,11 +200,12 @@ export const useLeads = () => {
         notes: leadData.notes || null,
         value: leadData.value ? Number(leadData.value) : null,
         user_id: user.id,
-        assigned_to: user.email, // Assign to current user's email
-        assigned_team_member_id: teamMember?.id || null // Link to team member if exists
+        // Fix: Don't assign email to assigned_to field (it expects UUID)
+        // Instead, only assign the team member ID if found
+        assigned_team_member_id: teamMember?.id || null
       };
 
-      console.log('Creating lead with comprehensive team member assignment:', cleanData);
+      console.log('Creating lead with proper UUID assignment:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')
@@ -228,7 +229,7 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('Lead created successfully with team assignment:', data);
+      console.log('Lead created successfully with proper team assignment:', data);
       
       // Don't immediately add to state - let the real-time subscription handle it
       // This prevents duplicate entries and ensures proper real-time behavior
@@ -288,7 +289,7 @@ export const useLeads = () => {
       };
 
       // Maintain team member assignment if not explicitly provided
-      if (!updates.assigned_team_member_id && !updates.assigned_to) {
+      if (!updates.assigned_team_member_id) {
         const currentLead = leads.find(lead => lead.id === id);
         if (currentLead && !currentLead.assigned_team_member_id) {
           // Try to get team member record for current user
@@ -300,7 +301,6 @@ export const useLeads = () => {
 
           if (teamMember) {
             updateData.assigned_team_member_id = teamMember.id;
-            updateData.assigned_to = user.email;
           }
         }
       }
