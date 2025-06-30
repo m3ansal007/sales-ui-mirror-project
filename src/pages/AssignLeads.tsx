@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useLeads } from '@/hooks/useLeads';
@@ -7,10 +8,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AssignmentControls } from '@/components/assign-leads/AssignmentControls';
 import { LeadsTable } from '@/components/assign-leads/LeadsTable';
 import { SelectionSummary } from '@/components/assign-leads/SelectionSummary';
+import { AssignedLeadsSection } from '@/components/AssignedLeadsSection';
 
 const AssignLeads = () => {
   const { user, userRole } = useAuth();
-  const { leads, loading: leadsLoading, updateLead, refetch } = useLeads(user, userRole);
+  const { leads, assignedLeads, loading: leadsLoading, updateLead, refetch } = useLeads(user, userRole);
   const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
@@ -24,6 +26,34 @@ const AssignLeads = () => {
     refetch();
   }, [refetchTeamMembers, refetch]);
 
+  // Sales Associate sees only their assigned leads
+  if (userRole === 'Sales Associate') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex">
+        <Sidebar />
+        
+        <div className="flex-1 overflow-hidden">
+          <div className="p-8">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-white mb-2">Assigned Leads to You</h1>
+              <p className="text-slate-400">Leads assigned to you by managers or admins</p>
+            </div>
+
+            {leadsLoading ? (
+              <div className="text-center text-slate-400">Loading assigned leads...</div>
+            ) : (
+              <AssignedLeadsSection
+                assignedLeads={assignedLeads}
+                onEditLead={() => {}} // Sales associates can't edit from this view
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin/Sales Manager view with assignment capabilities
   const handleSelectLead = (leadId: string, checked: boolean) => {
     if (checked) {
       setSelectedLeads(prev => [...prev, leadId]);
@@ -183,17 +213,14 @@ const AssignLeads = () => {
             <p className="text-slate-400">Assign leads to team members for better management</p>
           </div>
 
-          {/* Assignment Controls - Only show for Admin/Sales Manager */}
-          {(userRole === 'Admin' || userRole === 'Sales Manager') && (
-            <AssignmentControls
-              selectedLeads={selectedLeads}
-              selectedTeamMember={selectedTeamMember}
-              setSelectedTeamMember={setSelectedTeamMember}
-              teamMembers={teamMembers}
-              isAssigning={isAssigning}
-              onBulkAssign={handleBulkAssign}
-            />
-          )}
+          <AssignmentControls
+            selectedLeads={selectedLeads}
+            selectedTeamMember={selectedTeamMember}
+            setSelectedTeamMember={setSelectedTeamMember}
+            teamMembers={teamMembers}
+            isAssigning={isAssigning}
+            onBulkAssign={handleBulkAssign}
+          />
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             {leadsLoading || teamLoading ? (
