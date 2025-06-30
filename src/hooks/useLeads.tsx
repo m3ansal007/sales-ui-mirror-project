@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +34,17 @@ export interface CreateLeadData {
   value?: number;
 }
 
+// Simple type aliases to avoid deep type instantiation
+type LeadsQueryResult = {
+  data: Lead[] | null;
+  error: any;
+};
+
+type TeamMemberQueryResult = {
+  data: { id: string }[] | null;
+  error: any;
+};
+
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,39 +60,39 @@ export const useLeads = () => {
       // If user is admin, show all leads (including those created by team members)
       // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
-        // Admin sees all leads in the system
-        const { data, error } = await supabase
+        // Admin sees all leads in the system - simplified query
+        const response = await supabase
           .from('leads')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false }) as LeadsQueryResult;
         
-        if (error) throw error;
-        allLeads = data || [];
+        if (response.error) throw response.error;
+        allLeads = response.data || [];
       } else {
         // Sales associates see their own leads + leads assigned to them
-        // First get the team member ID for this user
+        // First get the team member ID for this user - simplified query
         const teamMemberResponse = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
-          .limit(1);
+          .limit(1) as TeamMemberQueryResult;
 
         if (teamMemberResponse.data && teamMemberResponse.data.length > 0) {
           const teamMemberId = teamMemberResponse.data[0].id;
           
-          // Get own leads
+          // Get own leads - simplified query
           const ownLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false }) as LeadsQueryResult;
 
-          // Get assigned leads
+          // Get assigned leads - simplified query
           const assignedLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('assigned_team_member_id', teamMemberId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false }) as LeadsQueryResult;
 
           if (ownLeadsResponse.error) throw ownLeadsResponse.error;
           if (assignedLeadsResponse.error) throw assignedLeadsResponse.error;
@@ -94,12 +106,12 @@ export const useLeads = () => {
           );
           allLeads = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else {
-          // Fallback to just their own leads
+          // Fallback to just their own leads - simplified query
           const fallbackResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false }) as LeadsQueryResult;
           
           if (fallbackResponse.error) throw fallbackResponse.error;
           allLeads = fallbackResponse.data || [];
