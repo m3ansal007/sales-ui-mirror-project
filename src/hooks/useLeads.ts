@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,60 +39,47 @@ export const useLeads = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
 
-  const fetchLeads = async (): Promise<void> => {
+  const fetchLeads = async () => {
     if (!user) {
       setLoading(false);
       return;
     }
-    
+
     try {
       console.log('Fetching leads for user:', user.email, 'Role:', userRole);
       
-      let queryBuilder = supabase.from('leads');
+      let query = supabase.from('leads').select('*');
       
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         console.log('Admin/Manager - fetching all leads');
-        const { data, error } = await queryBuilder
-          .select('*')
-          .order('created_at', { ascending: false });
+        const { data, error } = await query.order('created_at', { ascending: false });
         
         if (error) throw error;
         setLeads(data || []);
       } else {
-        console.log('Sales Associate - fetching assigned leads');
+        console.log('Sales Associate - fetching user and assigned leads');
         
-        // First, get the team member ID for this user
+        // Get team member record for current user
         const { data: teamMemberData, error: teamError } = await supabase
           .from('team_members')
           .select('id')
-          .eq('auth_user_id', user.id)
+          .eq('user_id', user.id)
           .single();
 
         if (teamError) {
           console.error('Error fetching team member:', teamError);
-          // Fallback: just get leads created by this user
-          const { data, error } = await queryBuilder
-            .select('*')
+          // Fallback: get leads created by user only
+          const { data, error } = await query
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-          
-          if (error) throw error;
-          setLeads(data || []);
-        } else if (teamMemberData) {
-          console.log('Found team member ID:', teamMemberData.id);
-          // Get leads where user is creator OR assigned team member
-          const { data, error } = await queryBuilder
-            .select('*')
-            .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMemberData.id}`)
             .order('created_at', { ascending: false });
           
           if (error) throw error;
           setLeads(data || []);
         } else {
-          console.log('No team member found, fetching user-created leads only');
-          const { data, error } = await queryBuilder
-            .select('*')
-            .eq('user_id', user.id)
+          console.log('Found team member ID:', teamMemberData.id);
+          // Get leads created by user OR assigned to user
+          const { data, error } = await query
+            .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMemberData.id}`)
             .order('created_at', { ascending: false });
           
           if (error) throw error;
@@ -99,9 +87,9 @@ export const useLeads = () => {
         }
       }
       
-      console.log('Fetched leads:', leads.length, 'leads');
+      console.log('Fetched leads count:', leads.length);
     } catch (error) {
-      console.error('Error in fetchLeads:', error);
+      console.error('Error fetching leads:', error);
       toast({
         title: "Error",
         description: "Failed to fetch leads",
@@ -112,11 +100,10 @@ export const useLeads = () => {
     }
   };
 
-  // Set up real-time subscription
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up leads real-time subscription...');
+    console.log('Setting up leads fetch and real-time subscription...');
     fetchLeads();
 
     const channel = supabase
@@ -157,7 +144,7 @@ export const useLeads = () => {
             lead.id === updatedLead.id ? updatedLead : lead
           ));
           
-          // Refresh leads to ensure proper filtering for sales associates
+          // Refresh for sales associates to ensure proper filtering
           if (userRole !== 'Admin' && userRole !== 'Sales Manager') {
             fetchLeads();
           }
@@ -185,57 +172,11 @@ export const useLeads = () => {
     };
   }, [user, userRole, toast]);
 
-  const checkForDuplicate = (leadData: CreateLeadData) => {
-    const { name, email, phone } = leadData;
-    
-    if (!name) return { isDuplicate: false };
-    
-    const duplicates = leads.filter(lead => 
-      lead.name.toLowerCase().trim() === name.toLowerCase().trim()
-    );
-
-    for (const duplicate of duplicates) {
-      const sameEmail = email && duplicate.email && 
-        email.toLowerCase().trim() === duplicate.email.toLowerCase().trim();
-      const samePhone = phone && duplicate.phone && 
-        phone.trim() === duplicate.phone.trim();
-
-      if (sameEmail && samePhone) {
-        return {
-          isDuplicate: true,
-          message: `A lead with the name "${name}", email "${email}", and phone "${phone}" already exists.`
-        };
-      } else if (sameEmail) {
-        return {
-          isDuplicate: true,
-          message: `A lead with the name "${name}" and email "${email}" already exists.`
-        };
-      } else if (samePhone) {
-        return {
-          isDuplicate: true,
-          message: `A lead with the name "${name}" and phone "${phone}" already exists.`
-        };
-      }
-    }
-
-    return { isDuplicate: false };
-  };
-
   const createLead = async (leadData: CreateLeadData) => {
     if (!user) {
       toast({
         title: "Error",
         description: "You must be logged in to create leads",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    const duplicateCheck = checkForDuplicate(leadData);
-    if (duplicateCheck.isDuplicate) {
-      toast({
-        title: "Duplicate Lead",
-        description: duplicateCheck.message,
         variant: "destructive",
       });
       return false;
@@ -267,28 +208,14 @@ export const useLeads = () => {
 
       if (error) {
         console.error('Supabase error:', error);
-        
-        if (error.message.includes('duplicate') || error.code === '23505') {
-          toast({
-            title: "Duplicate Lead",
-            description: "A lead with this information already exists.",
-            variant: "destructive",
-          });
-          return false;
-        }
-        
         throw error;
       }
       
       console.log('Lead created successfully:', data);
       
-      const assignmentMessage = data.assigned_team_member_id 
-        ? "Lead created and assigned successfully"
-        : "Lead created successfully";
-      
       toast({
         title: "Success",
-        description: assignmentMessage,
+        description: "Lead created successfully",
       });
       return true;
     } catch (error: any) {
@@ -304,28 +231,6 @@ export const useLeads = () => {
 
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     if (!user) return false;
-
-    if (updates.name || updates.email || updates.phone) {
-      const currentLead = leads.find(lead => lead.id === id);
-      if (currentLead) {
-        const updatedLeadData = { ...currentLead, ...updates };
-        const otherLeads = leads.filter(lead => lead.id !== id);
-        const tempLeads = leads;
-        setLeads(otherLeads);
-        
-        const duplicateCheck = checkForDuplicate(updatedLeadData);
-        setLeads(tempLeads);
-        
-        if (duplicateCheck.isDuplicate) {
-          toast({
-            title: "Duplicate Lead",
-            description: duplicateCheck.message,
-            variant: "destructive",
-          });
-          return false;
-        }
-      }
-    }
 
     try {
       const updateData = { 
@@ -344,20 +249,12 @@ export const useLeads = () => {
 
       if (error) {
         console.error('Error updating lead:', error);
-        if (error.message.includes('duplicate') || error.code === '23505') {
-          toast({
-            title: "Duplicate Lead",
-            description: "A lead with this information already exists.",
-            variant: "destructive",
-          });
-          return false;
-        }
         throw error;
       }
       
       console.log('Lead updated successfully:', data);
       
-      // Force refresh to ensure sales associates see updated assignments
+      // Force refresh to ensure proper filtering
       await fetchLeads();
       
       return true;
