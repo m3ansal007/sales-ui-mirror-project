@@ -53,10 +53,6 @@ export const AuthButton = () => {
     }
   };
 
-  const getAuthorizedRole = (user: any) => {
-    return user?.user_metadata?.authorized_role || user?.user_metadata?.role;
-  };
-
   if (!user) return null;
 
   return (
@@ -67,13 +63,11 @@ export const AuthButton = () => {
           <div className="text-sm font-medium truncate">{user.email}</div>
           <div className={`text-xs ${getRoleColor(userRole)} flex items-center gap-1`}>
             <Shield className="w-3 h-3" />
-            {userRole || 'Sales Associate'}
+            {userRole || 'Loading...'}
           </div>
-          {getAuthorizedRole(user) && (
-            <div className="text-xs text-slate-500">
-              Authorized: {getAuthorizedRole(user)}
-            </div>
-          )}
+          <div className="text-xs text-slate-500">
+            Database Role System
+          </div>
         </div>
       </div>
       <Button

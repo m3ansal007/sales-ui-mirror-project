@@ -1,12 +1,14 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserRoles, UserRole } from '@/hooks/useUserRoles';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  userRole: string | null;
+  userRole: UserRole | null;
   signUp: (email: string, password: string, fullName?: string, role?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string, selectedRole: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -27,9 +29,11 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Use the new user roles hook
+  const { userRole, loading: roleLoading } = useUserRoles(user);
 
   useEffect(() => {
     // Set up auth state listener first
@@ -45,15 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Get user role from metadata
-        if (session?.user) {
-          const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
-          setUserRole(role);
-          console.log('User role:', role);
-        } else {
-          setUserRole(null);
-        }
         
         setLoading(false);
         
@@ -72,11 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isSigningOut) {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const role = session.user.user_metadata?.role || session.user.user_metadata?.authorized_role || 'Sales Associate';
-          setUserRole(role);
-        }
       }
       
       setLoading(false);
@@ -260,8 +250,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      // Update local state immediately
-      setUserRole(role);
       console.log('User role updated to:', role);
     } catch (error) {
       console.error('Failed to update user role:', error);
@@ -277,7 +265,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear local state immediately to prevent UI issues
       setUser(null);
       setSession(null);
-      setUserRole(null);
       
       // Clear any stored session data in localStorage
       localStorage.removeItem('supabase.auth.token');
@@ -307,7 +294,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Even on unexpected errors, clear state and redirect
       setUser(null);
       setSession(null);
-      setUserRole(null);
       setIsSigningOut(false);
       
       // Clear localStorage as fallback
@@ -322,7 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     user,
     session,
-    loading,
+    loading: loading || roleLoading,
     userRole,
     signUp,
     signIn,
