@@ -33,69 +33,49 @@ export interface CreateLeadData {
   value?: number;
 }
 
-type RawLead = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  company: string | null;
-  source: string | null;
-  status: string;
-  assigned_to: string | null;
-  assigned_team_member_id: string | null;
-  notes: string | null;
-  value: number | null;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-};
-
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, userRole } = useAuth();
   const { toast } = useToast();
 
-  const transformLead = (raw: RawLead): Lead => ({
-    id: raw.id,
-    name: raw.name,
-    email: raw.email || undefined,
-    phone: raw.phone || undefined,
-    company: raw.company || undefined,
-    source: raw.source || undefined,
-    status: raw.status,
-    assigned_to: raw.assigned_to || undefined,
-    assigned_team_member_id: raw.assigned_team_member_id || undefined,
-    notes: raw.notes || undefined,
-    value: raw.value || undefined,
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
-    user_id: raw.user_id,
-  });
-
   const fetchLeads = async (): Promise<void> => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
     try {
+      console.log('Fetching leads for user:', user.email, 'Role:', userRole);
+      
       let query = supabase.from('leads').select('*');
       
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
         // Admins and Sales Managers see all leads
+        console.log('Admin/Manager - fetching all leads');
         query = query.order('created_at', { ascending: false });
       } else {
         // Sales associates see leads they created OR leads assigned to them
+        console.log('Sales Associate - fetching assigned leads');
+        
         // First, get the team member ID for this user
-        const { data: teamMemberData } = await supabase
+        const { data: teamMemberData, error: teamError } = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
           .single();
 
-        if (teamMemberData) {
+        if (teamError) {
+          console.error('Error fetching team member:', teamError);
+          // Fallback: just get leads created by this user
+          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+        } else if (teamMemberData) {
+          console.log('Found team member ID:', teamMemberData.id);
           // Get leads where user is creator OR assigned team member
           query = query.or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMemberData.id}`)
             .order('created_at', { ascending: false });
         } else {
+          console.log('No team member found, fetching user-created leads only');
           // Fallback: just get leads created by this user
           query = query.eq('user_id', user.id).order('created_at', { ascending: false });
         }
@@ -103,13 +83,15 @@ export const useLeads = () => {
 
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching leads:', error);
+        throw error;
+      }
       
-      const transformedLeads = (data || []).map(transformLead);
-      console.log('Fetched leads:', transformedLeads.length);
-      setLeads(transformedLeads);
+      console.log('Fetched leads:', data?.length || 0, 'leads');
+      setLeads(data || []);
     } catch (error) {
-      console.error('Error fetching leads:', error);
+      console.error('Error in fetchLeads:', error);
       toast({
         title: "Error",
         description: "Failed to fetch leads",
@@ -138,7 +120,7 @@ export const useLeads = () => {
         },
         (payload) => {
           console.log('Real-time: New lead added:', payload.new);
-          const newLead = transformLead(payload.new as RawLead);
+          const newLead = payload.new as Lead;
           setLeads(prev => {
             const exists = prev.some(lead => lead.id === newLead.id);
             if (exists) return prev;
@@ -160,10 +142,15 @@ export const useLeads = () => {
         },
         (payload) => {
           console.log('Real-time: Lead updated:', payload.new);
-          const updatedLead = transformLead(payload.new as RawLead);
+          const updatedLead = payload.new as Lead;
           setLeads(prev => prev.map(lead => 
             lead.id === updatedLead.id ? updatedLead : lead
           ));
+          
+          // Refresh leads to ensure proper filtering for sales associates
+          if (userRole !== 'Admin' && userRole !== 'Sales Manager') {
+            fetchLeads();
+          }
         }
       )
       .on(
@@ -360,10 +347,8 @@ export const useLeads = () => {
       
       console.log('Lead updated successfully:', data);
       
-      // Update local state
-      setLeads(prev => prev.map(lead => 
-        lead.id === id ? { ...lead, ...updates } : lead
-      ));
+      // Force refresh to ensure sales associates see updated assignments
+      await fetchLeads();
       
       return true;
     } catch (error: any) {

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,13 +12,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserCheck, Users } from 'lucide-react';
 
 const AssignLeads = () => {
-  const { leads, loading: leadsLoading, updateLead } = useLeads();
-  const { teamMembers, loading: teamLoading } = useTeamMembers();
+  const { leads, loading: leadsLoading, updateLead, refetch } = useLeads();
+  const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
   const { user, userRole } = useAuth();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState(false);
   const { toast } = useToast();
+
+  // Force refresh team members when component mounts
+  useEffect(() => {
+    console.log('AssignLeads mounted, refreshing data...');
+    refetchTeamMembers();
+    refetch();
+  }, [refetchTeamMembers, refetch]);
 
   const handleSelectLead = (leadId: string, checked: boolean) => {
     if (checked) {
@@ -83,6 +90,9 @@ const AssignLeads = () => {
       setSelectedLeads([]);
       setSelectedTeamMember('');
 
+      // Force refresh to show updated assignments
+      await refetch();
+
       // Show result toast
       if (successCount > 0) {
         toast({
@@ -126,6 +136,9 @@ const AssignLeads = () => {
           title: "Lead assigned",
           description: assignValue ? "Lead assigned successfully" : "Lead unassigned successfully",
         });
+        
+        // Force refresh to show updated assignments
+        await refetch();
       } else {
         console.log(`Failed to assign lead ${leadId}`);
       }
@@ -153,6 +166,14 @@ const AssignLeads = () => {
   };
 
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
+
+  // Debug logging
+  console.log('AssignLeads render:', {
+    leadsCount: leads.length,
+    teamMembersCount: teamMembers.length,
+    userRole,
+    loading: leadsLoading || teamLoading
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -249,7 +270,7 @@ const AssignLeads = () => {
                       {(userRole === 'Admin' || userRole === 'Sales Manager') && (
                         <TableCell>
                           <Select
-                            value={lead.assigned_team_member_id || ''}
+                            value={lead.assigned_team_member_id || 'unassigned'}
                             onValueChange={(value) => handleIndividualAssign(lead.id, value)}
                           >
                             <SelectTrigger className="w-40 bg-slate-800 border-slate-700">
