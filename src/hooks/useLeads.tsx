@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,46 +59,50 @@ export const useLeads = () => {
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
-        const { data: teamMemberData } = await supabase
+        const teamMemberResponse = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
           .limit(1);
 
-        if (teamMemberData && teamMemberData.length > 0) {
+        if (teamMemberResponse.data && teamMemberResponse.data.length > 0) {
+          const teamMemberId = teamMemberResponse.data[0].id;
+          
           // Get own leads
-          const { data: ownLeads, error: ownError } = await supabase
+          const ownLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
           // Get assigned leads
-          const { data: assignedLeads, error: assignedError } = await supabase
+          const assignedLeadsResponse = await supabase
             .from('leads')
             .select('*')
-            .eq('assigned_team_member_id', teamMemberData[0].id)
+            .eq('assigned_team_member_id', teamMemberId)
             .order('created_at', { ascending: false });
 
-          if (ownError) throw ownError;
-          if (assignedError) throw assignedError;
+          if (ownLeadsResponse.error) throw ownLeadsResponse.error;
+          if (assignedLeadsResponse.error) throw assignedLeadsResponse.error;
 
           // Combine and deduplicate results
-          const combinedLeads = [...(ownLeads || []), ...(assignedLeads || [])];
+          const ownLeads = ownLeadsResponse.data || [];
+          const assignedLeads = assignedLeadsResponse.data || [];
+          const combinedLeads = [...ownLeads, ...assignedLeads];
           const uniqueLeads = combinedLeads.filter((lead, index, self) => 
             index === self.findIndex(l => l.id === lead.id)
           );
           allLeads = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else {
           // Fallback to just their own leads
-          const { data, error } = await supabase
+          const fallbackResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
           
-          if (error) throw error;
-          allLeads = data || [];
+          if (fallbackResponse.error) throw fallbackResponse.error;
+          allLeads = fallbackResponse.data || [];
         }
       }
 

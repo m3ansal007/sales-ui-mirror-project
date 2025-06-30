@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useLeads } from '@/hooks/useLeads';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { UserCheck, Users } from 'lucide-react';
 
 const AssignLeads = () => {
   const { leads, loading: leadsLoading, updateLead } = useLeads();
   const { teamMembers, loading: teamLoading } = useTeamMembers();
+  const { user, userRole } = useAuth();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState(false);
@@ -143,8 +144,18 @@ const AssignLeads = () => {
     }
   };
 
-  const getAssignedTeamMemberName = (teamMemberId: string | undefined) => {
+  const getAssignedTeamMemberName = (teamMemberId: string | undefined, leadId: string) => {
     if (!teamMemberId) return 'Unassigned';
+    
+    // Check if current user is a sales associate and this lead is assigned to them
+    if (userRole === 'Sales Associate' && user) {
+      // Find the current user's team member record
+      const currentUserTeamMember = teamMembers.find(tm => tm.auth_user_id === user.id);
+      if (currentUserTeamMember && currentUserTeamMember.id === teamMemberId) {
+        return 'Assigned to you';
+      }
+    }
+    
     const member = teamMembers.find(tm => tm.id === teamMemberId);
     return member ? member.name : 'Unknown';
   };
@@ -162,35 +173,37 @@ const AssignLeads = () => {
             <p className="text-slate-400">Assign leads to team members for better management</p>
           </div>
 
-          {/* Assignment Controls */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-blue-400" />
-                <span className="text-white font-medium">Bulk Assignment</span>
+          {/* Assignment Controls - Only show for Admin/Sales Manager */}
+          {(userRole === 'Admin' || userRole === 'Sales Manager') && (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-blue-400" />
+                  <span className="text-white font-medium">Bulk Assignment</span>
+                </div>
+                <Select value={selectedTeamMember} onValueChange={setSelectedTeamMember}>
+                  <SelectTrigger className="w-64 bg-slate-800 border-slate-700">
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name} ({member.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={handleBulkAssign}
+                  disabled={isAssigning || selectedLeads.length === 0 || !selectedTeamMember}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  {isAssigning ? 'Assigning...' : `Assign ${selectedLeads.length} Lead${selectedLeads.length !== 1 ? 's' : ''}`}
+                </Button>
               </div>
-              <Select value={selectedTeamMember} onValueChange={setSelectedTeamMember}>
-                <SelectTrigger className="w-64 bg-slate-800 border-slate-700">
-                  <SelectValue placeholder="Select team member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name} ({member.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                onClick={handleBulkAssign}
-                disabled={isAssigning || selectedLeads.length === 0 || !selectedTeamMember}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                {isAssigning ? 'Assigning...' : `Assign ${selectedLeads.length} Lead${selectedLeads.length !== 1 ? 's' : ''}`}
-              </Button>
             </div>
-          </div>
+          )}
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             {leadsLoading || teamLoading ? (
@@ -199,31 +212,37 @@ const AssignLeads = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-800">
-                    <TableHead className="text-slate-300 w-12">
-                      <Checkbox
-                        checked={isAllSelected}
-                        onCheckedChange={handleSelectAll}
-                        className="border-slate-600"
-                      />
-                    </TableHead>
+                    {(userRole === 'Admin' || userRole === 'Sales Manager') && (
+                      <TableHead className="text-slate-300 w-12">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={handleSelectAll}
+                          className="border-slate-600"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="text-slate-300">Name</TableHead>
                     <TableHead className="text-slate-300">Company</TableHead>
                     <TableHead className="text-slate-300">Contact</TableHead>
                     <TableHead className="text-slate-300">Status</TableHead>
                     <TableHead className="text-slate-300">Currently Assigned</TableHead>
-                    <TableHead className="text-slate-300">Assign To</TableHead>
+                    {(userRole === 'Admin' || userRole === 'Sales Manager') && (
+                      <TableHead className="text-slate-300">Assign To</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {leads.map((lead) => (
                     <TableRow key={lead.id} className="border-slate-800 hover:bg-slate-800/50">
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedLeads.includes(lead.id)}
-                          onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
-                          className="border-slate-600"
-                        />
-                      </TableCell>
+                      {(userRole === 'Admin' || userRole === 'Sales Manager') && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedLeads.includes(lead.id)}
+                            onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
+                            className="border-slate-600"
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="text-white font-medium">{lead.name}</TableCell>
                       <TableCell className="text-slate-300">{lead.company || '-'}</TableCell>
                       <TableCell className="text-slate-300">{lead.email || lead.phone || '-'}</TableCell>
@@ -233,26 +252,28 @@ const AssignLeads = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-slate-300">
-                        {getAssignedTeamMemberName(lead.assigned_team_member_id)}
+                        {getAssignedTeamMemberName(lead.assigned_team_member_id, lead.id)}
                       </TableCell>
-                      <TableCell>
-                        <Select
-                          value={lead.assigned_team_member_id || ''}
-                          onValueChange={(value) => handleIndividualAssign(lead.id, value)}
-                        >
-                          <SelectTrigger className="w-40 bg-slate-800 border-slate-700">
-                            <SelectValue placeholder="Select member" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {teamMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                      {(userRole === 'Admin' || userRole === 'Sales Manager') && (
+                        <TableCell>
+                          <Select
+                            value={lead.assigned_team_member_id || ''}
+                            onValueChange={(value) => handleIndividualAssign(lead.id, value)}
+                          >
+                            <SelectTrigger className="w-40 bg-slate-800 border-slate-700">
+                              <SelectValue placeholder="Select member" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {teamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  {member.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -266,7 +287,7 @@ const AssignLeads = () => {
             )}
           </div>
 
-          {selectedLeads.length > 0 && (
+          {selectedLeads.length > 0 && (userRole === 'Admin' || userRole === 'Sales Manager') && (
             <div className="mt-4 p-4 bg-slate-800 border border-slate-700 rounded-lg">
               <div className="flex items-center justify-between">
                 <span className="text-slate-300">
