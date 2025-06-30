@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,7 +56,7 @@ export const useLeads = () => {
           .order('created_at', { ascending: false });
         
         if (error) throw error;
-        allLeads = data as Lead[];
+        allLeads = data || [];
       } else {
         // Sales associates see their own leads + leads assigned to them
         // First get the team member ID for this user
@@ -98,7 +99,7 @@ export const useLeads = () => {
             .order('created_at', { ascending: false });
           
           if (error) throw error;
-          allLeads = data as Lead[];
+          allLeads = data || [];
         }
       }
 
@@ -360,6 +361,8 @@ export const useLeads = () => {
         updated_at: new Date().toISOString() 
       };
 
+      console.log(`Updating lead ${id} with:`, updateData);
+
       const { data, error } = await supabase
         .from('leads')
         .update(updateData)
@@ -368,6 +371,7 @@ export const useLeads = () => {
         .single();
 
       if (error) {
+        console.error('Error updating lead:', error);
         // Check if it's a duplicate error from the database
         if (error.message.includes('duplicate') || error.code === '23505') {
           toast({
@@ -380,20 +384,13 @@ export const useLeads = () => {
         throw error;
       }
       
+      console.log('✅ Lead updated successfully:', data);
+      
       // Manual update for immediate UI response
       setLeads(prev => prev.map(lead => 
         lead.id === id ? { ...lead, ...updates } : lead
       ));
       
-      console.log('✅ Lead updated successfully:', {
-        leadId: id,
-        updates,
-      });
-      
-      toast({
-        title: "Success",
-        description: "Lead updated successfully",
-      });
       return true;
     } catch (error: any) {
       console.error('Error updating lead:', error);

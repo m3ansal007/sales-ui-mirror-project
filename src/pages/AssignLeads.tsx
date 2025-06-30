@@ -60,13 +60,16 @@ const AssignLeads = () => {
     try {
       for (const leadId of selectedLeads) {
         try {
+          console.log(`Assigning lead ${leadId} to team member ${selectedTeamMember}`);
           const success = await updateLead(leadId, {
             assigned_team_member_id: selectedTeamMember
           });
           if (success) {
             successCount++;
+            console.log(`Successfully assigned lead ${leadId}`);
           } else {
             errorCount++;
+            console.log(`Failed to assign lead ${leadId}`);
           }
         } catch (error) {
           errorCount++;
@@ -105,6 +108,30 @@ const AssignLeads = () => {
     }
   };
 
+  const handleIndividualAssign = async (leadId: string, teamMemberId: string) => {
+    console.log(`Individual assign: lead ${leadId} to team member ${teamMemberId}`);
+    
+    const assignValue = teamMemberId === 'unassigned' ? null : teamMemberId;
+    
+    try {
+      const success = await updateLead(leadId, {
+        assigned_team_member_id: assignValue
+      });
+      
+      if (success) {
+        console.log(`Successfully assigned lead ${leadId} to ${teamMemberId}`);
+        toast({
+          title: "Lead assigned",
+          description: assignValue ? "Lead assigned successfully" : "Lead unassigned successfully",
+        });
+      } else {
+        console.log(`Failed to assign lead ${leadId}`);
+      }
+    } catch (error) {
+      console.error(`Error assigning lead ${leadId}:`, error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'New': return 'bg-blue-500/20 text-blue-400';
@@ -123,7 +150,6 @@ const AssignLeads = () => {
   };
 
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
-  const isSomeSelected = selectedLeads.length > 0 && selectedLeads.length < leads.length;
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -212,11 +238,7 @@ const AssignLeads = () => {
                       <TableCell>
                         <Select
                           value={lead.assigned_team_member_id || ''}
-                          onValueChange={(value) => {
-                            updateLead(lead.id, {
-                              assigned_team_member_id: value || null
-                            });
-                          }}
+                          onValueChange={(value) => handleIndividualAssign(lead.id, value)}
                         >
                           <SelectTrigger className="w-40 bg-slate-800 border-slate-700">
                             <SelectValue placeholder="Select member" />
