@@ -33,11 +33,45 @@ export interface CreateLeadData {
   value?: number;
 }
 
+type DatabaseLead = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  source: string | null;
+  status: string;
+  assigned_to: string | null;
+  assigned_team_member_id: string | null;
+  notes: string | null;
+  value: number | null;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+};
+
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, userRole } = useAuth();
   const { toast } = useToast();
+
+  const transformLead = (dbLead: DatabaseLead): Lead => ({
+    id: dbLead.id,
+    name: dbLead.name,
+    email: dbLead.email || undefined,
+    phone: dbLead.phone || undefined,
+    company: dbLead.company || undefined,
+    source: dbLead.source || undefined,
+    status: dbLead.status,
+    assigned_to: dbLead.assigned_to || undefined,
+    assigned_team_member_id: dbLead.assigned_team_member_id || undefined,
+    notes: dbLead.notes || undefined,
+    value: dbLead.value || undefined,
+    created_at: dbLead.created_at,
+    updated_at: dbLead.updated_at,
+    user_id: dbLead.user_id,
+  });
 
   const fetchLeads = async (): Promise<void> => {
     if (!user) return;
@@ -46,69 +80,71 @@ export const useLeads = () => {
       let allLeads: Lead[] = [];
       
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
-        // Admins see all leads in the system
-        const { data, error } = await supabase
+        const response = await supabase
           .from('leads')
           .select('*')
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
-        allLeads = data || [];
+        if (response.error) throw response.error;
+        allLeads = (response.data as DatabaseLead[])?.map(transformLead) || [];
       } else {
         // Sales associates see their own leads + leads assigned to them
-        const { data: teamMemberData, error: teamError } = await supabase
+        const teamMemberResponse = await supabase
           .from('team_members')
           .select('id')
-          .eq('auth_user_id', user.id)
+          .eq('user_id', user.id)
           .limit(1);
 
-        if (teamError) {
-          console.error('Error fetching team member:', teamError);
+        if (teamMemberResponse.error) {
+          console.error('Error fetching team member:', teamMemberResponse.error);
           // Fallback to just their own leads
-          const { data, error } = await supabase
+          const ownLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
           
-          if (error) throw error;
-          allLeads = data || [];
-        } else if (teamMemberData && teamMemberData.length > 0) {
-          const teamMemberId = teamMemberData[0].id;
+          if (ownLeadsResponse.error) throw ownLeadsResponse.error;
+          allLeads = (ownLeadsResponse.data as DatabaseLead[])?.map(transformLead) || [];
+        } else if (teamMemberResponse.data && teamMemberResponse.data.length > 0) {
+          const teamMemberId = teamMemberResponse.data[0].id;
           
           // Get own leads
-          const { data: ownLeads, error: ownError } = await supabase
+          const ownLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
           // Get assigned leads
-          const { data: assignedLeads, error: assignedError } = await supabase
+          const assignedLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('assigned_team_member_id', teamMemberId)
             .order('created_at', { ascending: false });
 
-          if (ownError) throw ownError;
-          if (assignedError) throw assignedError;
+          if (ownLeadsResponse.error) throw ownLeadsResponse.error;
+          if (assignedLeadsResponse.error) throw assignedLeadsResponse.error;
+
+          const ownLeads = (ownLeadsResponse.data as DatabaseLead[])?.map(transformLead) || [];
+          const assignedLeads = (assignedLeadsResponse.data as DatabaseLead[])?.map(transformLead) || [];
 
           // Combine and deduplicate
-          const combined = [...(ownLeads || []), ...(assignedLeads || [])];
+          const combined = [...ownLeads, ...assignedLeads];
           const unique = combined.filter((lead, index, self) => 
             index === self.findIndex(l => l.id === lead.id)
           );
           allLeads = unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else {
           // No team member record, just show own leads
-          const { data, error } = await supabase
+          const ownLeadsResponse = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
           
-          if (error) throw error;
-          allLeads = data || [];
+          if (ownLeadsResponse.error) throw ownLeadsResponse.error;
+          allLeads = (ownLeadsResponse.data as DatabaseLead[])?.map(transformLead) || [];
         }
       }
 
@@ -144,7 +180,7 @@ export const useLeads = () => {
         },
         (payload) => {
           console.log('Real-time: New lead added:', payload.new);
-          const newLead = payload.new as Lead;
+          const newLead = transformLead(payload.new as DatabaseLead);
           setLeads(prev => {
             const exists = prev.some(lead => lead.id === newLead.id);
             if (exists) {
@@ -170,7 +206,7 @@ export const useLeads = () => {
         },
         (payload) => {
           console.log('Real-time: Lead updated:', payload.new);
-          const updatedLead = payload.new as Lead;
+          const updatedLead = transformLead(payload.new as DatabaseLead);
           setLeads(prev => prev.map(lead => 
             lead.id === updatedLead.id ? updatedLead : lead
           ));
@@ -272,16 +308,16 @@ export const useLeads = () => {
 
       console.log('Creating lead with data:', cleanData);
 
-      const { data, error } = await supabase
+      const response = await supabase
         .from('leads')
         .insert(cleanData)
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase error:', error);
+      if (response.error) {
+        console.error('Supabase error:', response.error);
         
-        if (error.message.includes('duplicate') || error.code === '23505') {
+        if (response.error.message.includes('duplicate') || response.error.code === '23505') {
           toast({
             title: "Duplicate Lead",
             description: "A lead with this information already exists.",
@@ -290,12 +326,12 @@ export const useLeads = () => {
           return false;
         }
         
-        throw error;
+        throw response.error;
       }
       
-      console.log('Lead created successfully:', data);
+      console.log('Lead created successfully:', response.data);
       
-      const assignmentMessage = data.assigned_team_member_id 
+      const assignmentMessage = response.data.assigned_team_member_id 
         ? "Lead created and assigned successfully"
         : "Lead created successfully";
       
@@ -348,16 +384,16 @@ export const useLeads = () => {
 
       console.log(`Updating lead ${id} with:`, updateData);
 
-      const { data, error } = await supabase
+      const response = await supabase
         .from('leads')
         .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        console.error('Error updating lead:', error);
-        if (error.message.includes('duplicate') || error.code === '23505') {
+      if (response.error) {
+        console.error('Error updating lead:', response.error);
+        if (response.error.message.includes('duplicate') || response.error.code === '23505') {
           toast({
             title: "Duplicate Lead",
             description: "A lead with this information already exists.",
@@ -365,10 +401,10 @@ export const useLeads = () => {
           });
           return false;
         }
-        throw error;
+        throw response.error;
       }
       
-      console.log('Lead updated successfully:', data);
+      console.log('Lead updated successfully:', response.data);
       
       setLeads(prev => prev.map(lead => 
         lead.id === id ? { ...lead, ...updates } : lead
@@ -390,12 +426,12 @@ export const useLeads = () => {
     if (!user) return false;
 
     try {
-      const { error } = await supabase
+      const response = await supabase
         .from('leads')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (response.error) throw response.error;
       
       setLeads(prev => prev.filter(lead => lead.id !== id));
       
