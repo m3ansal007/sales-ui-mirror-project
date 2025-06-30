@@ -48,47 +48,32 @@ export const useLeads = (user: User | null, userRole: string | null) => {
     try {
       console.log('Fetching leads for user:', user.email, 'Role:', userRole);
       
-      if (userRole === 'Admin') {
-        console.log('Admin - fetching all leads');
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
+      let query = supabase.from('leads').select('*');
+      const normalizedRole = userRole?.toLowerCase();
+
+      if (normalizedRole === 'admin' || normalizedRole === 'sales_manager') {
+        query = query.order('created_at', { ascending: false });
         
+        const { data, error } = await query;
         if (error) throw error;
+        
         setLeads(data || []);
         setAssignedLeads([]);
-      } else if (userRole === 'Sales Manager') {
-        console.log('Sales Manager - fetching assigned leads');
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('assigned_to', user.id)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        setLeads(data || []);
-        setAssignedLeads([]);
-      } else {
-        console.log('Sales Associate - fetching created and assigned leads separately');
-        
-        // Get team member record for current user
-        const { data: teamMemberData, error: teamError } = await supabase
+      } else if (normalizedRole === 'sales_associate') {
+        const { data: teamMemberData, error: tmError } = await supabase
           .from('team_members')
           .select('id')
           .eq('user_id', user.id)
           .single();
 
-        if (teamError) {
-          console.error('Error fetching team member:', teamError);
-          // Fallback: get leads assigned to user by user_id
-          const { data, error } = await supabase
-            .from('leads')
-            .select('*')
-            .eq('assigned_to', user.id)
-            .order('created_at', { ascending: false });
+        if (tmError || !teamMemberData) {
+          console.log('No team member data found, fallback to user-created leads');
+          // If no team member data, fallback to user-created leads
+          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
           
+          const { data, error } = await query;
           if (error) throw error;
+          
           setLeads(data || []);
           setAssignedLeads([]);
         } else {
@@ -151,7 +136,7 @@ export const useLeads = (user: User | null, userRole: string | null) => {
           const newLead = payload.new as Lead;
           
           // For sales associates, check if it's their lead or assigned to them
-          if (userRole !== 'Admin' && userRole !== 'Sales Manager') {
+          if (userRole?.toLowerCase() !== 'admin' && userRole?.toLowerCase() !== 'sales_manager') {
             fetchLeads(); // Refresh to properly categorize
           } else {
             setLeads(prev => {
