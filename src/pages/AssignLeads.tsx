@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -144,20 +145,11 @@ const AssignLeads = () => {
     }
   };
 
-  const getAssignedTeamMemberName = (teamMemberId: string | undefined, leadId: string) => {
+  const getAssignedTeamMemberName = (teamMemberId: string | undefined) => {
     if (!teamMemberId) return 'Unassigned';
     
-    // Check if current user is a sales associate and this lead is assigned to them
-    if (userRole === 'Sales Associate' && user) {
-      // Find the current user's team member record
-      const currentUserTeamMember = teamMembers.find(tm => tm.auth_user_id === user.id);
-      if (currentUserTeamMember && currentUserTeamMember.id === teamMemberId) {
-        return 'Assigned to you';
-      }
-    }
-    
     const member = teamMembers.find(tm => tm.id === teamMemberId);
-    return member ? member.name : 'Unknown';
+    return member ? member.name : 'Unknown Member';
   };
 
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
@@ -252,7 +244,7 @@ const AssignLeads = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-slate-300">
-                        {getAssignedTeamMemberName(lead.assigned_team_member_id, lead.id)}
+                        {getAssignedTeamMemberName(lead.assigned_team_member_id)}
                       </TableCell>
                       {(userRole === 'Admin' || userRole === 'Sales Manager') && (
                         <TableCell>
