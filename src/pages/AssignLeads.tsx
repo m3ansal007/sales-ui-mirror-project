@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useLeads } from '@/hooks/useLeads';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
@@ -19,12 +19,18 @@ const AssignLeads = () => {
   const [isAssigning, setIsAssigning] = useState(false);
   const { toast } = useToast();
 
-  // Force refresh team members when component mounts
-  useEffect(() => {
-    console.log('AssignLeads mounted, refreshing data...');
+  // Memoize the refresh function to prevent infinite re-renders
+  const refreshData = useCallback(() => {
+    console.log('AssignLeads refreshing data...');
     refetchTeamMembers();
     refetch();
   }, [refetchTeamMembers, refetch]);
+
+  // Only refresh on mount
+  useEffect(() => {
+    console.log('AssignLeads mounted, refreshing data...');
+    refreshData();
+  }, []); // Empty dependency array to only run on mount
 
   // Sales Associate sees only their assigned leads
   if (userRole === 'Sales Associate') {
