@@ -1,10 +1,11 @@
-
 import { Users, AlertTriangle, Clock, Flame } from "lucide-react";
 import { useLeads } from "@/hooks/useLeads";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
 
 export const LeadInsights = () => {
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
 
   const insights = useMemo(() => {
     const today = new Date();

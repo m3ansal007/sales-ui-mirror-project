@@ -1,14 +1,15 @@
-
 import { Calendar as CalendarIcon, Plus, Clock } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useState } from "react";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useLeads } from "@/hooks/useLeads";
+import { useAuth } from "@/contexts/AuthContext";
 import { AddAppointmentModal } from "@/components/AddAppointmentModal";
 
 const Calendar = () => {
   const { appointments, loading, createAppointment } = useAppointments();
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, setViewMode] = useState<'today' | 'week' | 'month'>('today');
 

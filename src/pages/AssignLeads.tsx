@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useLeads } from '@/hooks/useLeads';
@@ -10,9 +9,9 @@ import { LeadsTable } from '@/components/assign-leads/LeadsTable';
 import { SelectionSummary } from '@/components/assign-leads/SelectionSummary';
 
 const AssignLeads = () => {
-  const { leads, loading: leadsLoading, updateLead, refetch } = useLeads();
-  const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
   const { user, userRole } = useAuth();
+  const { leads, loading: leadsLoading, updateLead, refetch } = useLeads(user, userRole);
+  const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState(false);

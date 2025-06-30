@@ -1,10 +1,12 @@
 import { TrendingUp, DollarSign } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useLeads } from "@/hooks/useLeads";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
 
 const SalesPipeline = () => {
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
 
   // Calculate real pipeline data from actual leads
   const pipelineData = useMemo(() => {

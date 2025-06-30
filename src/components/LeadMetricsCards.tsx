@@ -1,11 +1,13 @@
 import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useLeads";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMemo, useEffect, useState, useRef } from "react";
 
 export const LeadMetricsCards = () => {
   const navigate = useNavigate();
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
   const [animateCount, setAnimateCount] = useState(false);
   const previousCountRef = useRef(0);
 

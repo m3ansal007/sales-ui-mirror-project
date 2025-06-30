@@ -1,4 +1,3 @@
-
 import { ChevronRight, Plus, User, Phone, Mail, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AddLeadModal } from "@/components/AddLeadModal";
@@ -9,8 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export const LeadActivityFeed = () => {
   const [showAddLead, setShowAddLead] = useState(false);
   const [activities, setActivities] = useState([]);
-  const { createLead } = useLeads();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
+  const { createLead } = useLeads(user, userRole);
 
   useEffect(() => {
     if (!user) return;

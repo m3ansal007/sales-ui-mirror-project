@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { AddTaskModal } from '@/components/AddTaskModal';
 import { useTasks } from '@/hooks/useTasks';
 import { useLeads } from '@/hooks/useLeads';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 
 const TasksFollowUps = () => {
   const { tasks, loading, createTask, completeTask } = useTasks();
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filter, setFilter] = useState('All Tasks');
   const [searchParams] = useSearchParams();

@@ -3,10 +3,12 @@ import { Sidebar } from "@/components/Sidebar";
 import { useLeads } from "@/hooks/useLeads";
 import { useTasks } from "@/hooks/useTasks";
 import { useAppointments } from "@/hooks/useAppointments";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
 
 const Reports = () => {
-  const { leads } = useLeads();
+  const { user, userRole } = useAuth();
+  const { leads } = useLeads(user, userRole);
   const { tasks } = useTasks();
   const { appointments } = useAppointments();
 
