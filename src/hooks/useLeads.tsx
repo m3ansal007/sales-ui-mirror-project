@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,14 +47,17 @@ export const useLeads = () => {
     try {
       console.log('Fetching leads for user:', user.email, 'Role:', userRole);
       
-      let query = supabase.from('leads').select('*');
+      let queryBuilder = supabase.from('leads');
       
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
-        // Admins and Sales Managers see all leads
         console.log('Admin/Manager - fetching all leads');
-        query = query.order('created_at', { ascending: false });
+        const { data, error } = await queryBuilder
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setLeads(data || []);
       } else {
-        // Sales associates see leads they created OR leads assigned to them
         console.log('Sales Associate - fetching assigned leads');
         
         // First, get the team member ID for this user
@@ -68,28 +70,36 @@ export const useLeads = () => {
         if (teamError) {
           console.error('Error fetching team member:', teamError);
           // Fallback: just get leads created by this user
-          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+          const { data, error } = await queryBuilder
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          setLeads(data || []);
         } else if (teamMemberData) {
           console.log('Found team member ID:', teamMemberData.id);
           // Get leads where user is creator OR assigned team member
-          query = query.or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMemberData.id}`)
+          const { data, error } = await queryBuilder
+            .select('*')
+            .or(`user_id.eq.${user.id},assigned_team_member_id.eq.${teamMemberData.id}`)
             .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          setLeads(data || []);
         } else {
           console.log('No team member found, fetching user-created leads only');
-          // Fallback: just get leads created by this user
-          query = query.eq('user_id', user.id).order('created_at', { ascending: false });
+          const { data, error } = await queryBuilder
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          setLeads(data || []);
         }
       }
-
-      const { data, error } = await query;
       
-      if (error) {
-        console.error('Error fetching leads:', error);
-        throw error;
-      }
-      
-      console.log('Fetched leads:', data?.length || 0, 'leads');
-      setLeads(data || []);
+      console.log('Fetched leads:', leads.length, 'leads');
     } catch (error) {
       console.error('Error in fetchLeads:', error);
       toast({
