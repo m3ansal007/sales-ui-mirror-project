@@ -17,44 +17,81 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
     
     return { leads: data || [], assignedLeads: [] };
   } else if (normalizedRole === 'sales_associate') {
+    // First, try to get team member by user_id
     const { data: teamMemberData, error: tmError } = await supabase
       .from('team_members')
       .select('id')
       .eq('user_id', user.id)
       .single();
 
-    if (tmError || !teamMemberData) {
-      console.log('No team member data found, fallback to user-created leads');
-      query = query.eq('user_id', user.id).order('created_at', { ascending: false });
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      return { leads: data || [], assignedLeads: [] };
-    } else {
+    // Get leads created by user
+    const { data: createdLeads, error: createdError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (createdError) throw createdError;
+    
+    // Get leads assigned to user - try multiple approaches
+    let assignedLeadsData: any[] = [];
+    
+    if (teamMemberData && !tmError) {
+      // Method 1: Using team member ID
       console.log('Found team member ID:', teamMemberData.id);
-      
-      // Get leads created by user
-      const { data: createdLeads, error: createdError } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (createdError) throw createdError;
-      
-      // Get leads assigned to user (but not created by them)
-      const { data: assignedLeadsData, error: assignedError } = await supabase
+      const { data: assignedByTeamId, error: assignedError1 } = await supabase
         .from('leads')
         .select('*')
         .eq('assigned_team_member_id', teamMemberData.id)
         .neq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      if (assignedError) throw assignedError;
-      
-      return { leads: createdLeads || [], assignedLeads: assignedLeadsData || [] };
+      if (!assignedError1 && assignedByTeamId) {
+        assignedLeadsData = assignedByTeamId;
+      }
     }
+    
+    // Method 2: If no team member record, try by user email in team_members
+    if (assignedLeadsData.length === 0) {
+      console.log('Trying to find assignments by email:', user.email);
+      const { data: teamMemberByEmail, error: tmEmailError } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+      
+      if (!tmEmailError && teamMemberByEmail) {
+        console.log('Found team member by email:', teamMemberByEmail.id);
+        const { data: assignedByEmail, error: assignedError2 } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('assigned_team_member_id', teamMemberByEmail.id)
+          .neq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (!assignedError2 && assignedByEmail) {
+          assignedLeadsData = assignedByEmail;
+        }
+      }
+    }
+    
+    // Method 3: Try using the old assigned_to field as fallback
+    if (assignedLeadsData.length === 0) {
+      console.log('Trying fallback: assigned_to field');
+      const { data: assignedByUserId, error: assignedError3 } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .neq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (!assignedError3 && assignedByUserId) {
+        assignedLeadsData = assignedByUserId;
+      }
+    }
+    
+    console.log('Final assigned leads count:', assignedLeadsData.length);
+    return { leads: createdLeads || [], assignedLeads: assignedLeadsData || [] };
   }
   
   return { leads: [], assignedLeads: [] };

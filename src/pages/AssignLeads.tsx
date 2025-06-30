@@ -32,6 +32,19 @@ const AssignLeads = () => {
     refreshData();
   }, []); // Empty dependency array to only run on mount
 
+  // Debug logging for Sales Associate view
+  useEffect(() => {
+    if (userRole === 'Sales Associate') {
+      console.log('Sales Associate Debug Info:', {
+        userEmail: user?.email,
+        userId: user?.id,
+        assignedLeadsCount: assignedLeads.length,
+        assignedLeads: assignedLeads,
+        teamMembers: teamMembers
+      });
+    }
+  }, [user, userRole, assignedLeads, teamMembers]);
+
   // Sales Associate sees only their assigned leads
   if (userRole === 'Sales Associate') {
     return (
@@ -43,6 +56,14 @@ const AssignLeads = () => {
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-white mb-2">Assigned Leads to You</h1>
               <p className="text-slate-400">Leads assigned to you by managers or admins</p>
+              {/* Debug info for Sales Associate */}
+              <div className="mt-4 p-4 bg-slate-800 rounded-lg">
+                <p className="text-slate-300 text-sm">Debug Info:</p>
+                <p className="text-slate-400 text-xs">Email: {user?.email}</p>
+                <p className="text-slate-400 text-xs">User ID: {user?.id}</p>
+                <p className="text-slate-400 text-xs">Assigned Leads Count: {assignedLeads.length}</p>
+                <p className="text-slate-400 text-xs">Loading: {leadsLoading ? 'Yes' : 'No'}</p>
+              </div>
             </div>
 
             {leadsLoading ? (
