@@ -45,6 +45,7 @@ export const Sidebar = () => {
   const canAccessTeam = userRole === 'Admin' || userRole === 'Sales Manager';
   const canAccessReports = userRole === 'Admin' || userRole === 'Sales Manager';
   const canAccessSettings = userRole === 'Admin';
+  const canAssignLeads = userRole === 'Admin' || userRole === 'Sales Manager';
 
   return (
     <div className={cn("bg-slate-900 border-r border-slate-800 h-screen transition-all duration-300 flex flex-col overflow-y-auto", isCollapsed ? "w-16" : "w-64")}>
@@ -84,10 +85,20 @@ export const Sidebar = () => {
                   <UserPlus className="w-3 h-3" />
                   Add New Lead
                 </button>
-                <button onClick={() => navigate("/assign-leads")} className={cn("w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors", isActive("/assign-leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800")}>
-                  <UserCheck className="w-3 h-3" />
-                  Assign Leads
-                </button>
+                {/* Show Assign Leads only for Admin and Sales Manager */}
+                {canAssignLeads && (
+                  <button onClick={() => navigate("/assign-leads")} className={cn("w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors", isActive("/assign-leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800")}>
+                    <UserCheck className="w-3 h-3" />
+                    Assign Leads
+                  </button>
+                )}
+                {/* Show Assigned Leads for Sales Associates */}
+                {!canAssignLeads && (
+                  <button onClick={() => navigate("/assign-leads")} className={cn("w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors", isActive("/assign-leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800")}>
+                    <UserCheck className="w-3 h-3" />
+                    Assigned Leads
+                  </button>
+                )}
                 <button onClick={() => toggleSection('leadStages')} className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center justify-between">
                   Lead Stages
                   <ChevronDown className={cn("w-3 h-3 transition-transform", expandedSections.leadStages && "rotate-180")} />
