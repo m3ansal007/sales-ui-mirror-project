@@ -346,7 +346,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          role: Database["public"]["Enums"]["user_role"]
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
         }
@@ -369,13 +369,6 @@ export type Database = {
       get_user_role: {
         Args: { user_uuid?: string }
         Returns: Database["public"]["Enums"]["user_role"]
-      }
-      has_role: {
-        Args: {
-          check_role: Database["public"]["Enums"]["user_role"]
-          user_uuid?: string
-        }
-        Returns: boolean
       }
     }
     Enums: {
