@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Lead {
@@ -33,15 +33,14 @@ export interface CreateLeadData {
   value?: number;
 }
 
-export const useLeads = () => {
+export const useLeads = (user: User | null, userRole: string | null) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [assignedLeads, setAssignedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, userRole } = useAuth();
   const { toast } = useToast();
 
   const fetchLeads = async () => {
-    if (!user) {
+    if (!user || !userRole) {
       setLoading(false);
       return;
     }
@@ -49,8 +48,8 @@ export const useLeads = () => {
     try {
       console.log('Fetching leads for user:', user.email, 'Role:', userRole);
       
-      if (userRole === 'Admin' || userRole === 'Sales Manager') {
-        console.log('Admin/Manager - fetching all leads');
+      if (userRole === 'Admin') {
+        console.log('Admin - fetching all leads');
         const { data, error } = await supabase
           .from('leads')
           .select('*')
@@ -58,7 +57,18 @@ export const useLeads = () => {
         
         if (error) throw error;
         setLeads(data || []);
-        setAssignedLeads([]); // Admins see all leads in one view
+        setAssignedLeads([]);
+      } else if (userRole === 'Sales Manager') {
+        console.log('Sales Manager - fetching assigned leads');
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('assigned_to', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setLeads(data || []);
+        setAssignedLeads([]);
       } else {
         console.log('Sales Associate - fetching created and assigned leads separately');
         
@@ -71,11 +81,11 @@ export const useLeads = () => {
 
         if (teamError) {
           console.error('Error fetching team member:', teamError);
-          // Fallback: get leads created by user only
+          // Fallback: get leads assigned to user by user_id
           const { data, error } = await supabase
             .from('leads')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('assigned_to', user.id)
             .order('created_at', { ascending: false });
           
           if (error) throw error;
@@ -122,7 +132,7 @@ export const useLeads = () => {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !userRole) return;
 
     console.log('Setting up leads fetch and real-time subscription...');
     fetchLeads();

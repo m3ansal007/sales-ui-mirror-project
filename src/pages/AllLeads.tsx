@@ -27,8 +27,8 @@ import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { AssignedLeadsSection } from '@/components/AssignedLeadsSection';
 
 const AllLeads = () => {
-  const { leads, assignedLeads, loading, createLead, updateLead, deleteLead, refetch } = useLeads();
   const { user, userRole } = useAuth();
+  const { leads, assignedLeads, loading, createLead, updateLead, deleteLead, refetch } = useLeads(user, userRole);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
