@@ -21,7 +21,6 @@ export interface Lead {
   user_id: string;
 }
 
-// Simplified type for creating leads
 export interface CreateLeadData {
   name: string;
   email?: string;
@@ -33,17 +32,6 @@ export interface CreateLeadData {
   notes?: string;
   value?: number;
 }
-
-// Simple type aliases to avoid deep type instantiation
-type LeadsQueryResult = {
-  data: Lead[] | null;
-  error: any;
-};
-
-type TeamMemberQueryResult = {
-  data: { id: string }[] | null;
-  error: any;
-};
 
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -57,64 +45,70 @@ export const useLeads = () => {
     try {
       let allLeads: Lead[] = [];
       
-      // If user is admin, show all leads (including those created by team members)
-      // If user is sales associate, show only their own leads AND assigned leads
       if (userRole === 'Admin' || userRole === 'Sales Manager') {
-        // Admin sees all leads in the system - simplified query
-        const response = await supabase
+        // Admins see all leads in the system
+        const { data, error } = await supabase
           .from('leads')
           .select('*')
-          .order('created_at', { ascending: false }) as LeadsQueryResult;
+          .order('created_at', { ascending: false });
         
-        if (response.error) throw response.error;
-        allLeads = response.data || [];
+        if (error) throw error;
+        allLeads = data || [];
       } else {
         // Sales associates see their own leads + leads assigned to them
-        // First get the team member ID for this user - simplified query
-        const teamMemberResponse = await supabase
+        const { data: teamMemberData, error: teamError } = await supabase
           .from('team_members')
           .select('id')
           .eq('auth_user_id', user.id)
-          .limit(1) as TeamMemberQueryResult;
+          .limit(1);
 
-        if (teamMemberResponse.data && teamMemberResponse.data.length > 0) {
-          const teamMemberId = teamMemberResponse.data[0].id;
-          
-          // Get own leads - simplified query
-          const ownLeadsResponse = await supabase
+        if (teamError) {
+          console.error('Error fetching team member:', teamError);
+          // Fallback to just their own leads
+          const { data, error } = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false }) as LeadsQueryResult;
+            .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          allLeads = data || [];
+        } else if (teamMemberData && teamMemberData.length > 0) {
+          const teamMemberId = teamMemberData[0].id;
+          
+          // Get own leads
+          const { data: ownLeads, error: ownError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
 
-          // Get assigned leads - simplified query
-          const assignedLeadsResponse = await supabase
+          // Get assigned leads
+          const { data: assignedLeads, error: assignedError } = await supabase
             .from('leads')
             .select('*')
             .eq('assigned_team_member_id', teamMemberId)
-            .order('created_at', { ascending: false }) as LeadsQueryResult;
+            .order('created_at', { ascending: false });
 
-          if (ownLeadsResponse.error) throw ownLeadsResponse.error;
-          if (assignedLeadsResponse.error) throw assignedLeadsResponse.error;
+          if (ownError) throw ownError;
+          if (assignedError) throw assignedError;
 
-          // Combine and deduplicate results
-          const ownLeads = ownLeadsResponse.data || [];
-          const assignedLeads = assignedLeadsResponse.data || [];
-          const combinedLeads = [...ownLeads, ...assignedLeads];
-          const uniqueLeads = combinedLeads.filter((lead, index, self) => 
+          // Combine and deduplicate
+          const combined = [...(ownLeads || []), ...(assignedLeads || [])];
+          const unique = combined.filter((lead, index, self) => 
             index === self.findIndex(l => l.id === lead.id)
           );
-          allLeads = uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          allLeads = unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         } else {
-          // Fallback to just their own leads - simplified query
-          const fallbackResponse = await supabase
+          // No team member record, just show own leads
+          const { data, error } = await supabase
             .from('leads')
             .select('*')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false }) as LeadsQueryResult;
+            .order('created_at', { ascending: false });
           
-          if (fallbackResponse.error) throw fallbackResponse.error;
-          allLeads = fallbackResponse.data || [];
+          if (error) throw error;
+          allLeads = data || [];
         }
       }
 
@@ -132,14 +126,13 @@ export const useLeads = () => {
     }
   };
 
-  // Set up real-time subscription for leads
+  // Set up real-time subscription
   useEffect(() => {
     if (!user) return;
 
     console.log('Setting up leads real-time subscription...');
     fetchLeads();
 
-    // Subscribe to real-time changes
     const leadsChannel = supabase
       .channel('leads-changes')
       .on(
@@ -153,17 +146,15 @@ export const useLeads = () => {
           console.log('Real-time: New lead added:', payload.new);
           const newLead = payload.new as Lead;
           setLeads(prev => {
-            // Check if lead already exists to avoid duplicates
             const exists = prev.some(lead => lead.id === newLead.id);
             if (exists) {
               console.log('Lead already exists, skipping duplicate');
               return prev;
             }
-            console.log('Adding new lead to state in real-time:', newLead.name);
+            console.log('Adding new lead to state:', newLead.name);
             return [newLead, ...prev];
           });
           
-          // Show toast notification for new leads
           toast({
             title: "New Lead Added",
             description: `${newLead.name} has been added to your leads`,
@@ -207,18 +198,15 @@ export const useLeads = () => {
     };
   }, [user, userRole, toast]);
 
-  // Check for duplicate leads
   const checkForDuplicate = (leadData: CreateLeadData) => {
     const { name, email, phone } = leadData;
     
     if (!name) return { isDuplicate: false };
     
-    // Find leads with the same name
     const duplicates = leads.filter(lead => 
       lead.name.toLowerCase().trim() === name.toLowerCase().trim()
     );
 
-    // Check if any of these leads also have the same email or phone
     for (const duplicate of duplicates) {
       const sameEmail = email && duplicate.email && 
         email.toLowerCase().trim() === duplicate.email.toLowerCase().trim();
@@ -256,7 +244,6 @@ export const useLeads = () => {
       return false;
     }
 
-    // Check for duplicates before creating
     const duplicateCheck = checkForDuplicate(leadData);
     if (duplicateCheck.isDuplicate) {
       toast({
@@ -268,7 +255,7 @@ export const useLeads = () => {
     }
 
     try {
-      console.log('🔄 Creating lead for user:', user.email);
+      console.log('Creating lead for user:', user.email);
       
       const cleanData = {
         name: leadData.name || '',
@@ -283,10 +270,7 @@ export const useLeads = () => {
         assigned_team_member_id: leadData.assigned_team_member_id || null
       };
 
-      console.log('📝 Creating lead with data:', {
-        ...cleanData,
-        user_email: user.email,
-      });
+      console.log('Creating lead with data:', cleanData);
 
       const { data, error } = await supabase
         .from('leads')
@@ -295,9 +279,8 @@ export const useLeads = () => {
         .single();
 
       if (error) {
-        console.error('❌ Supabase error:', error);
+        console.error('Supabase error:', error);
         
-        // Check if it's a duplicate error from the database
         if (error.message.includes('duplicate') || error.code === '23505') {
           toast({
             title: "Duplicate Lead",
@@ -310,15 +293,8 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('✅ Lead created successfully:', {
-        leadId: data.id,
-        leadName: data.name,
-        userId: data.user_id,
-        assignedTeamMemberId: data.assigned_team_member_id,
-        userEmail: user.email
-      });
+      console.log('Lead created successfully:', data);
       
-      // If lead is assigned to a team member, show appropriate message
       const assignmentMessage = data.assigned_team_member_id 
         ? "Lead created and assigned successfully"
         : "Lead created successfully";
@@ -329,7 +305,7 @@ export const useLeads = () => {
       });
       return true;
     } catch (error: any) {
-      console.error('❌ Error creating lead:', error);
+      console.error('Error creating lead:', error);
       toast({
         title: "Error",
         description: `Failed to create lead: ${error.message}`,
@@ -342,22 +318,16 @@ export const useLeads = () => {
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     if (!user) return false;
 
-    // If updating name, email, or phone, check for duplicates
     if (updates.name || updates.email || updates.phone) {
       const currentLead = leads.find(lead => lead.id === id);
       if (currentLead) {
-        const updatedLeadData = {
-          ...currentLead,
-          ...updates
-        };
-        
-        // Check for duplicates excluding the current lead
+        const updatedLeadData = { ...currentLead, ...updates };
         const otherLeads = leads.filter(lead => lead.id !== id);
         const tempLeads = leads;
-        setLeads(otherLeads); // Temporarily exclude current lead from duplicate check
+        setLeads(otherLeads);
         
         const duplicateCheck = checkForDuplicate(updatedLeadData);
-        setLeads(tempLeads); // Restore original leads array
+        setLeads(tempLeads);
         
         if (duplicateCheck.isDuplicate) {
           toast({
@@ -387,7 +357,6 @@ export const useLeads = () => {
 
       if (error) {
         console.error('Error updating lead:', error);
-        // Check if it's a duplicate error from the database
         if (error.message.includes('duplicate') || error.code === '23505') {
           toast({
             title: "Duplicate Lead",
@@ -399,9 +368,8 @@ export const useLeads = () => {
         throw error;
       }
       
-      console.log('✅ Lead updated successfully:', data);
+      console.log('Lead updated successfully:', data);
       
-      // Manual update for immediate UI response
       setLeads(prev => prev.map(lead => 
         lead.id === id ? { ...lead, ...updates } : lead
       ));
@@ -429,7 +397,6 @@ export const useLeads = () => {
 
       if (error) throw error;
       
-      // Manual update for immediate UI response
       setLeads(prev => prev.filter(lead => lead.id !== id));
       
       toast({
