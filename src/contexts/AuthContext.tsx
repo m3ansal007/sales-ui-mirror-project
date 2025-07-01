@@ -33,10 +33,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (!mounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -44,43 +48,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           try {
             const memberData = await getCurrentUserTeamMember(session.user);
-            setTeamMember(memberData);
+            if (mounted) {
+              setTeamMember(memberData);
+            }
           } catch (error) {
             console.error('Error fetching team member:', error);
-            setTeamMember(null);
+            if (mounted) {
+              setTeamMember(null);
+            }
           }
         } else {
-          setTeamMember(null);
+          if (mounted) {
+            setTeamMember(null);
+          }
         }
         
         // Always set loading to false after processing auth state change
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        getCurrentUserTeamMember(session.user)
-          .then(setTeamMember)
-          .catch((error) => {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+        
+        console.log('Initial session check:', session?.user?.email);
+        
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+        
+        if (session?.user && mounted) {
+          try {
+            const memberData = await getCurrentUserTeamMember(session.user);
+            if (mounted) {
+              setTeamMember(memberData);
+            }
+          } catch (error) {
             console.error('Error in initial team member fetch:', error);
-            setTeamMember(null);
-          })
-          .finally(() => setLoading(false));
-      } else {
-        setLoading(false);
+            if (mounted) {
+              setTeamMember(null);
+            }
+          }
+        }
+        
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in initializeAuth:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    }).catch((error) => {
-      console.error('Error getting session:', error);
-      setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, role: string) => {
