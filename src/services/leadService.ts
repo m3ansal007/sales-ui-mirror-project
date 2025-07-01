@@ -37,7 +37,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('*')
       .eq('user_id', user.id);
 
-    const createdLeads = createdLeadsRes.data || [];
+    const createdLeads: Lead[] = createdLeadsRes.data || [];
 
     // 2. Leads assigned to the manager
     const assignedToManagerRes = await supabase
@@ -45,7 +45,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('*')
       .eq('assigned_team_member_id', managerMember.id);
 
-    const assignedToManager = assignedToManagerRes.data || [];
+    const assignedToManager: Lead[] = assignedToManagerRes.data || [];
 
     // 3. Leads assigned to the manager's team (sales associates)
     const teamAssociatesRes = await supabase
@@ -53,10 +53,9 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('id')
       .eq('manager_id', managerMember.id);
 
-    const associateIds: string[] =
-      (teamAssociatesRes.data || []).map((tm: { id: string }) => tm.id);
+    const associateIds: string[] = (teamAssociatesRes.data || []).map((tm: { id: string }) => tm.id);
 
-    let leadsForTeam: any[] = [];
+    let leadsForTeam: Lead[] = [];
     if (associateIds.length > 0) {
       const teamLeadsRes = await supabase
         .from('leads')
@@ -66,8 +65,11 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       leadsForTeam = teamLeadsRes.data || [];
     }
 
+    // Combine leads using concat instead of spread to avoid type issues
+    const allLeads: Lead[] = createdLeads.concat(assignedToManager, leadsForTeam);
+
     return {
-      leads: [...createdLeads, ...assignedToManager, ...leadsForTeam],
+      leads: allLeads,
       assignedLeads: assignedToManager
     };
   }
@@ -86,9 +88,9 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('*')
       .eq('user_id', user.id);
 
-    const createdLeads = createdRes.data || [];
+    const createdLeads: Lead[] = createdRes.data || [];
 
-    let assignedLeads: any[] = [];
+    let assignedLeads: Lead[] = [];
 
     if (associateMember && !assocError) {
       const assignedRes = await supabase
@@ -100,8 +102,11 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       assignedLeads = assignedRes.data || [];
     }
 
+    // Combine leads using concat instead of spread
+    const allLeads: Lead[] = createdLeads.concat(assignedLeads);
+
     return {
-      leads: [...createdLeads, ...assignedLeads],
+      leads: allLeads,
       assignedLeads
     };
   }
