@@ -9,13 +9,59 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
   let query = supabase.from('leads').select('*');
   const normalizedRole = userRole?.toLowerCase();
 
-  if (normalizedRole === 'admin' || normalizedRole === 'sales_manager') {
+  if (normalizedRole === 'admin') {
     query = query.order('created_at', { ascending: false });
     
     const { data, error } = await query;
     if (error) throw error;
     
     return { leads: data || [], assignedLeads: [] };
+  } else if (normalizedRole === 'sales_manager') {
+    // Step 1: Get team member record
+    const { data: teamMemberData, error: tmError } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!teamMemberData || tmError) {
+      return { leads: [], assignedLeads: [] };
+    }
+
+    // Step 2: Leads assigned to the manager directly
+    const { data: assignedToManager } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('assigned_team_member_id', teamMemberData.id);
+
+    // Step 3: Leads created by manager
+    const { data: createdByManager } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('user_id', user.id);
+
+    // Step 4: Leads assigned to manager's associates
+    const { data: teamAssociates } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('manager_id', teamMemberData.id);
+
+    let leadsForTeam: any[] = [];
+
+    if (teamAssociates && teamAssociates.length > 0) {
+      const associateIds = teamAssociates.map(tm => tm.id);
+      const { data: leadsForAssociates } = await supabase
+        .from('leads')
+        .select('*')
+        .in('assigned_team_member_id', associateIds);
+
+      leadsForTeam = leadsForAssociates || [];
+    }
+
+    return {
+      leads: [...(createdByManager || []), ...(assignedToManager || []), ...leadsForTeam],
+      assignedLeads: assignedToManager || []
+    };
   } else if (normalizedRole === 'sales_associate') {
     // First, try to get team member by user_id
     const { data: teamMemberData, error: tmError } = await supabase

@@ -128,7 +128,7 @@ export const useTeamMembers = () => {
       try {
         // Try to find user in auth.users by email to get actual user_id
         const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const authUser = authUsers.users.find(u => u.email === member.email);
+        const authUser = authUsers?.users?.find(u => u.email === member.email);
         
         if (authUser) {
           // Fetch leads data
