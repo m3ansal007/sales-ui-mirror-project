@@ -53,23 +53,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTeamMember(null);
         }
         
+        // Always set loading to false after processing auth state change
         setLoading(false);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
         getCurrentUserTeamMember(session.user)
           .then(setTeamMember)
-          .catch(() => setTeamMember(null))
+          .catch((error) => {
+            console.error('Error in initial team member fetch:', error);
+            setTeamMember(null);
+          })
           .finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
