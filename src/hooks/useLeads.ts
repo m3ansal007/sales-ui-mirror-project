@@ -1,29 +1,27 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { Lead, CreateLeadData } from '@/types/leads';
 import { fetchLeadsByRole, createLead as createLeadService, updateLead as updateLeadService, deleteLead as deleteLeadService } from '@/services/leadService';
-import { useLeadRealtime } from '@/hooks/useLeadRealtime';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const useLeads = (user: User | null, userRole: string | null) => {
+export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [assignedLeads, setAssignedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user, teamMember } = useAuth();
   const { toast } = useToast();
 
   const fetchLeads = useCallback(async () => {
-    if (!user || !userRole) {
+    if (!user || !teamMember) {
       setLoading(false);
       return;
     }
 
     try {
-      const { leads: fetchedLeads, assignedLeads: fetchedAssignedLeads } = await fetchLeadsByRole(user, userRole);
+      const fetchedLeads = await fetchLeadsByRole(teamMember);
       setLeads(fetchedLeads);
-      setAssignedLeads(fetchedAssignedLeads);
       
-      console.log('Fetched leads count:', fetchedLeads.length, 'Assigned leads count:', fetchedAssignedLeads.length);
+      console.log('Fetched leads count:', fetchedLeads.length);
     } catch (error) {
       console.error('Error fetching leads:', error);
       toast({
@@ -34,29 +32,7 @@ export const useLeads = (user: User | null, userRole: string | null) => {
     } finally {
       setLoading(false);
     }
-  }, [user, userRole, toast]);
-
-  const handleLeadAdded = useCallback((newLead: Lead) => {
-    setLeads(prev => {
-      const exists = prev.some(lead => lead.id === newLead.id);
-      if (exists) return prev;
-      return [newLead, ...prev];
-    });
-  }, []);
-
-  const handleLeadDeleted = useCallback((id: string) => {
-    setLeads(prev => prev.filter(lead => lead.id !== id));
-    setAssignedLeads(prev => prev.filter(lead => lead.id !== id));
-  }, []);
-
-  useLeadRealtime({
-    user,
-    userRole,
-    onLeadAdded: handleLeadAdded,
-    onLeadUpdated: fetchLeads,
-    onLeadDeleted: handleLeadDeleted,
-    toast
-  });
+  }, [user, teamMember, toast]);
 
   useEffect(() => {
     fetchLeads();
@@ -79,6 +55,9 @@ export const useLeads = (user: User | null, userRole: string | null) => {
         title: "Success",
         description: "Lead created successfully",
       });
+      
+      // Refresh leads
+      await fetchLeads();
       return true;
     } catch (error: any) {
       console.error('Error creating lead:', error);
@@ -97,7 +76,7 @@ export const useLeads = (user: User | null, userRole: string | null) => {
     try {
       await updateLeadService(id, updates);
       
-      // Force refresh to ensure proper categorization
+      // Refresh leads
       await fetchLeads();
       
       return true;
@@ -119,7 +98,6 @@ export const useLeads = (user: User | null, userRole: string | null) => {
       await deleteLeadService(id);
       
       setLeads(prev => prev.filter(lead => lead.id !== id));
-      setAssignedLeads(prev => prev.filter(lead => lead.id !== id));
       
       toast({
         title: "Success",
@@ -137,9 +115,20 @@ export const useLeads = (user: User | null, userRole: string | null) => {
     }
   };
 
+  // Categorize leads based on user role and relationship
+  const categorizedLeads = {
+    myLeads: leads.filter(lead => lead.created_by === user?.id),
+    assignedToMe: leads.filter(lead => lead.assigned_team_member_id === teamMember?.id && lead.created_by !== user?.id),
+    teamLeads: leads.filter(lead => 
+      lead.created_by !== user?.id && 
+      lead.assigned_team_member_id !== teamMember?.id
+    ),
+    allLeads: leads
+  };
+
   return {
     leads,
-    assignedLeads,
+    categorizedLeads,
     loading,
     createLead,
     updateLead,
@@ -147,6 +136,3 @@ export const useLeads = (user: User | null, userRole: string | null) => {
     refetch: fetchLeads,
   };
 };
-
-// Re-export types for backward compatibility
-export type { Lead, CreateLeadData };

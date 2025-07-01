@@ -6,7 +6,7 @@ import { LogOut, User, Crown, BarChart3, Briefcase, Shield } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthButton = () => {
-  const { user, userRole, signOut } = useAuth();
+  const { user, teamMember, signOut } = useAuth();
   const { toast } = useToast();
 
   const handleSignOut = async () => {
@@ -27,29 +27,33 @@ export const AuthButton = () => {
         title: "Sign out completed",
         description: "You have been signed out",
       });
-      
-      // Force redirect as fallback
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 1000);
     }
   };
 
-  const getRoleIcon = (role: string | null) => {
+  const getRoleIcon = (role: string | undefined) => {
     switch (role) {
-      case 'Admin': return <Crown className="w-4 h-4 text-purple-400" />;
-      case 'Sales Manager': return <BarChart3 className="w-4 h-4 text-blue-400" />;
-      case 'Sales Associate': return <Briefcase className="w-4 h-4 text-green-400" />;
+      case 'admin': return <Crown className="w-4 h-4 text-purple-400" />;
+      case 'sales_manager': return <BarChart3 className="w-4 h-4 text-blue-400" />;
+      case 'sales_associate': return <Briefcase className="w-4 h-4 text-green-400" />;
       default: return <User className="w-4 h-4" />;
     }
   };
 
-  const getRoleColor = (role: string | null) => {
+  const getRoleColor = (role: string | undefined) => {
     switch (role) {
-      case 'Admin': return 'text-purple-400';
-      case 'Sales Manager': return 'text-blue-400';
-      case 'Sales Associate': return 'text-green-400';
+      case 'admin': return 'text-purple-400';
+      case 'sales_manager': return 'text-blue-400';
+      case 'sales_associate': return 'text-green-400';
       default: return 'text-slate-400';
+    }
+  };
+
+  const getRoleDisplayName = (role: string | undefined) => {
+    switch (role) {
+      case 'admin': return 'Admin';
+      case 'sales_manager': return 'Sales Manager';
+      case 'sales_associate': return 'Sales Associate';
+      default: return 'Loading...';
     }
   };
 
@@ -58,15 +62,15 @@ export const AuthButton = () => {
   return (
     <div className="flex flex-col gap-2 px-4 py-3 border-t border-slate-800">
       <div className="flex items-center gap-2 text-slate-300">
-        {getRoleIcon(userRole)}
+        {getRoleIcon(teamMember?.role)}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{user.email}</div>
-          <div className={`text-xs ${getRoleColor(userRole)} flex items-center gap-1`}>
+          <div className="text-sm font-medium truncate">{teamMember?.name || user.email}</div>
+          <div className={`text-xs ${getRoleColor(teamMember?.role)} flex items-center gap-1`}>
             <Shield className="w-3 h-3" />
-            {userRole || 'Loading...'}
+            {getRoleDisplayName(teamMember?.role)}
           </div>
           <div className="text-xs text-slate-500">
-            Database Role System
+            Team Hierarchy System
           </div>
         </div>
       </div>
