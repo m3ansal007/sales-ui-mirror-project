@@ -48,13 +48,16 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
     const leadsForTeam: any[] = [];
 
     if (teamAssociates && teamAssociates.length > 0) {
-      const associateIds = teamAssociates.map((tm: any) => tm.id);
-      const { data: leadsForAssociates } = await supabase
-        .from('leads')
-        .select('*')
-        .in('assigned_team_member_id', associateIds);
+      const associateIds: string[] = teamAssociates.map((tm: { id: string }) => tm.id);
+      
+      if (associateIds.length > 0) {
+        const { data: leadsForAssociates } = await supabase
+          .from('leads')
+          .select('*')
+          .in('assigned_team_member_id', associateIds);
 
-      leadsForTeam.push(...(leadsForAssociates || []));
+        leadsForTeam.push(...(leadsForAssociates || []));
+      }
     }
 
     return {
