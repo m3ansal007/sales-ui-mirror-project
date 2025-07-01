@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Lead, CreateLeadData } from '@/types/leads';
@@ -45,7 +46,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('id')
       .eq('manager_id', teamMemberData.id);
 
-    const leadsForTeam: any[] = [];
+    let leadsForTeam: any[] = [];
 
     if (teamAssociates && teamAssociates.length > 0) {
       const associateIds: string[] = teamAssociates.map((tm: { id: string }) => tm.id);
@@ -56,7 +57,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
           .select('*')
           .in('assigned_team_member_id', associateIds);
 
-        leadsForTeam.push(...(leadsForAssociates || []));
+        leadsForTeam = leadsForAssociates || [];
       }
     }
 
