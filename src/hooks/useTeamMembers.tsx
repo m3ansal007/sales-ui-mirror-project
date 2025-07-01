@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -127,8 +126,8 @@ export const useTeamMembers = () => {
 
       try {
         // Try to find user in auth.users by email to get actual user_id
-        const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const authUser = authUsers?.users?.find(u => u.email === member.email);
+        const { data: authUsersResponse } = await supabase.auth.admin.listUsers();
+        const authUser = authUsersResponse?.users?.find((u: any) => u.email === member.email);
         
         if (authUser) {
           // Fetch leads data
