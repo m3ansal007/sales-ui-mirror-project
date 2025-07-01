@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Lead, CreateLeadData } from '@/types/leads';
@@ -46,7 +45,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
       .select('id')
       .eq('manager_id', teamMemberData.id);
 
-    let leadsForTeam: any[] = [];
+    let leadsForTeam: Lead[] = [];
 
     if (teamAssociates && teamAssociates.length > 0) {
       const associateIds: string[] = teamAssociates.map((tm: { id: string }) => tm.id);
@@ -83,7 +82,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
     if (createdError) throw createdError;
     
     // Get leads assigned to user - try multiple approaches
-    let assignedLeadsData: any[] = [];
+    let assignedLeadsData: Lead[] = [];
     
     if (teamMemberData && !tmError) {
       // Method 1: Using team member ID
