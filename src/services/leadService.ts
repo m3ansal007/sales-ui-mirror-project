@@ -7,7 +7,7 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
   console.log('Fetching leads for user:', user.email, 'Role:', userRole);
   const normalizedRole = userRole?.toLowerCase();
 
-  // Admin: See all leads
+  // Admin → See everything
   if (normalizedRole === 'admin') {
     const { data, error } = await supabase
       .from('leads')
@@ -20,53 +20,57 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
 
   // Sales Manager
   if (normalizedRole === 'sales_manager') {
-    // Get team member ID for manager
-    const { data: managerMember, error: tmError } = await supabase
+    // Get manager's team member record
+    const managerMemberRes = await supabase
       .from('team_members')
       .select('id')
       .eq('user_id', user.id)
       .single();
 
-    if (!managerMember || tmError) {
+    if (!managerMemberRes.data || managerMemberRes.error) {
       return { leads: [], assignedLeads: [] };
     }
 
-    // 1. Leads created by the manager
-    const createdLeadsRes = await supabase
+    const managerId = managerMemberRes.data.id;
+
+    // Get leads created by manager
+    const createdRes = await supabase
       .from('leads')
       .select('*')
       .eq('user_id', user.id);
+    const createdLeads = createdRes.data || [];
 
-    const createdLeads: Lead[] = createdLeadsRes.data || [];
-
-    // 2. Leads assigned to the manager
-    const assignedToManagerRes = await supabase
+    // Get leads assigned to manager
+    const assignedRes = await supabase
       .from('leads')
       .select('*')
-      .eq('assigned_team_member_id', managerMember.id);
+      .eq('assigned_team_member_id', managerId);
+    const assignedToManager = assignedRes.data || [];
 
-    const assignedToManager: Lead[] = assignedToManagerRes.data || [];
-
-    // 3. Leads assigned to the manager's team (sales associates)
-    const teamAssociatesRes = await supabase
+    // Get sales associates under this manager
+    const teamRes = await supabase
       .from('team_members')
       .select('id')
-      .eq('manager_id', managerMember.id);
+      .eq('manager_id', managerId);
+    const teamData = teamRes.data || [];
+    const associateIds = teamData.map((tm: any) => tm.id);
 
-    const associateIds: string[] = (teamAssociatesRes.data || []).map((tm: { id: string }) => tm.id);
+    let leadsForTeam: any[] = [];
 
-    let leadsForTeam: Lead[] = [];
     if (associateIds.length > 0) {
-      const teamLeadsRes = await supabase
+      const leadsRes = await supabase
         .from('leads')
         .select('*')
         .in('assigned_team_member_id', associateIds);
 
-      leadsForTeam = teamLeadsRes.data || [];
+      leadsForTeam = leadsRes.data || [];
     }
 
-    // Combine leads using concat instead of spread to avoid type issues
-    const allLeads: Lead[] = createdLeads.concat(assignedToManager, leadsForTeam);
+    // Manually combine arrays to avoid spread operator issues
+    const allLeads: Lead[] = [];
+    createdLeads.forEach(lead => allLeads.push(lead));
+    assignedToManager.forEach(lead => allLeads.push(lead));
+    leadsForTeam.forEach(lead => allLeads.push(lead));
 
     return {
       leads: allLeads,
@@ -76,34 +80,36 @@ export const fetchLeadsByRole = async (user: User, userRole: string) => {
 
   // Sales Associate
   if (normalizedRole === 'sales_associate') {
-    // Get their team member ID
-    const { data: associateMember, error: assocError } = await supabase
+    const associateMemberRes = await supabase
       .from('team_members')
       .select('id')
       .eq('user_id', user.id)
       .single();
 
+    const associateId = associateMemberRes.data?.id;
+
     const createdRes = await supabase
       .from('leads')
       .select('*')
       .eq('user_id', user.id);
+    const createdLeads = createdRes.data || [];
 
-    const createdLeads: Lead[] = createdRes.data || [];
+    let assignedLeads: any[] = [];
 
-    let assignedLeads: Lead[] = [];
-
-    if (associateMember && !assocError) {
+    if (associateId) {
       const assignedRes = await supabase
         .from('leads')
         .select('*')
-        .eq('assigned_team_member_id', associateMember.id)
+        .eq('assigned_team_member_id', associateId)
         .neq('user_id', user.id);
 
       assignedLeads = assignedRes.data || [];
     }
 
-    // Combine leads using concat instead of spread
-    const allLeads: Lead[] = createdLeads.concat(assignedLeads);
+    // Manually combine arrays
+    const allLeads: Lead[] = [];
+    createdLeads.forEach(lead => allLeads.push(lead));
+    assignedLeads.forEach(lead => allLeads.push(lead));
 
     return {
       leads: allLeads,
