@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Lead, useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
@@ -148,10 +149,10 @@ const AllLeads = () => {
           </div>
 
           {/* Show assigned leads section for Sales Associates */}
-          {userRole === 'Sales Associate' && (
+          {userRole === 'sales_associate' && (
             <div className="mb-8">
               <AssignedLeadsSection
-                assignedLeads={categorizedLeads}
+                assignedLeads={categorizedLeads.assignedToMe}
                 onEditLead={handleEditLead}
               />
             </div>
