@@ -10,6 +10,8 @@
       "@/*": ["./src/*"]
     },
     "noImplicitAny": false,
+    "maxNodeModuleJsDepth": 1,
+    "useUnknownInCatchVariables": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,
     "allowJs": true,
