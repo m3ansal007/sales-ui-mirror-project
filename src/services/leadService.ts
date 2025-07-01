@@ -8,11 +8,16 @@ export const fetchLeadsByRole = async (userTeamMember: TeamMember): Promise<Lead
 
   const { data, error } = await supabase
     .from('leads')
-    .select('*')
+    .select('*, created_by:user_id')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  
+  // Transform the data to match our Lead type
+  return (data || []).map(lead => ({
+    ...lead,
+    created_by: lead.user_id
+  })) as Lead[];
 };
 
 export const createLead = async (leadData: CreateLeadData, user: User): Promise<Lead> => {
@@ -27,7 +32,7 @@ export const createLead = async (leadData: CreateLeadData, user: User): Promise<
     status: leadData.status || 'New',
     notes: leadData.notes || null,
     value: leadData.value ? Number(leadData.value) : null,
-    created_by: user.id,
+    user_id: user.id, // Keep using user_id for database insert
     assigned_team_member_id: leadData.assigned_team_member_id || null
   };
 
@@ -45,7 +50,11 @@ export const createLead = async (leadData: CreateLeadData, user: User): Promise<
   }
   
   console.log('Lead created successfully:', data);
-  return data;
+  // Transform response to match our Lead type
+  return {
+    ...data,
+    created_by: data.user_id
+  } as Lead;
 };
 
 export const updateLead = async (id: string, updates: Partial<Lead>): Promise<Lead> => {
@@ -53,6 +62,11 @@ export const updateLead = async (id: string, updates: Partial<Lead>): Promise<Le
     ...updates, 
     updated_at: new Date().toISOString() 
   };
+
+  // Remove created_by from updates if present, as we store user_id in database
+  if ('created_by' in updateData) {
+    delete updateData.created_by;
+  }
 
   console.log(`Updating lead ${id} with:`, updateData);
 
@@ -69,7 +83,10 @@ export const updateLead = async (id: string, updates: Partial<Lead>): Promise<Le
   }
   
   console.log('Lead updated successfully:', data);
-  return data;
+  return {
+    ...data,
+    created_by: data.user_id
+  } as Lead;
 };
 
 export const deleteLead = async (id: string): Promise<boolean> => {
@@ -99,5 +116,8 @@ export const assignLead = async (
     .single();
 
   if (error) throw error;
-  return data;
+  return {
+    ...data,
+    created_by: data.user_id
+  } as Lead;
 };

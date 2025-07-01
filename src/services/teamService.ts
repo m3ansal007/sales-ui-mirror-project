@@ -11,7 +11,7 @@ export const getCurrentUserTeamMember = async (user: User): Promise<TeamMember |
     .single();
 
   if (error) throw error;
-  return data;
+  return data as TeamMember;
 };
 
 export const getTeamMembers = async (): Promise<TeamMember[]> => {
@@ -22,7 +22,7 @@ export const getTeamMembers = async (): Promise<TeamMember[]> => {
     .order('name');
 
   if (error) throw error;
-  return data || [];
+  return (data || []) as TeamMember[];
 };
 
 export const createTeamMember = async (memberData: {
@@ -59,5 +59,5 @@ export const createTeamMember = async (memberData: {
     .single();
 
   if (error) throw error;
-  return data;
+  return data as TeamMember;
 };

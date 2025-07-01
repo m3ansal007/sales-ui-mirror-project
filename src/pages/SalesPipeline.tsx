@@ -1,13 +1,13 @@
+import React, { useState, useMemo } from 'react';
+import { Sidebar } from '@/components/Sidebar';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLeads } from '@/hooks/useLeads';
 import { TrendingUp, DollarSign } from "lucide-react";
-import { Sidebar } from "@/components/Sidebar";
-import { useLeads } from "@/hooks/useLeads";
-import { useAuth } from "@/contexts/AuthContext";
-import { useMemo } from "react";
 
 const SalesPipeline = () => {
-  const { user, userRole } = useAuth();
-  const { leads } = useLeads(user, userRole);
-
+  const { userRole } = useAuth();
+  const { leads, loading } = useLeads();
+  
   // Calculate real pipeline data from actual leads
   const pipelineData = useMemo(() => {
     const stages = [

@@ -1,14 +1,14 @@
 
 import { X, User, Mail, Phone, MapPin, Users, FileText, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Lead } from "@/hooks/useLeads";
+import { CreateLeadData } from "@/types/leads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AddLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<boolean>;
+  onSubmit: (leadData: CreateLeadData) => Promise<boolean>;
 }
 
 export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) => {
@@ -28,7 +28,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
   const { userRole } = useAuth();
 
   // Check if user is admin or sales manager who can assign leads
-  const canAssignLeads = userRole === 'Admin' || userRole === 'Sales Manager';
+  const canAssignLeads = userRole === 'admin' || userRole === 'sales_manager';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +41,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     setIsSubmitting(true);
     
     try {
-      const leadData = {
+      const leadData: CreateLeadData = {
         name: formData.name.trim(),
         email: formData.email.trim() || undefined,
         phone: formData.phone.trim() || undefined,

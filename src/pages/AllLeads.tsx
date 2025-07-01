@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Lead, useLeads } from '@/hooks/useLeads';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,7 +28,7 @@ import { AssignedLeadsSection } from '@/components/AssignedLeadsSection';
 
 const AllLeads = () => {
   const { user, userRole } = useAuth();
-  const { leads, assignedLeads, loading, createLead, updateLead, deleteLead, refetch } = useLeads(user, userRole);
+  const { leads, categorizedLeads, loading, createLead, updateLead, deleteLead, refetch } = useLeads();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
@@ -151,7 +151,7 @@ const AllLeads = () => {
           {userRole === 'Sales Associate' && (
             <div className="mb-8">
               <AssignedLeadsSection
-                assignedLeads={assignedLeads}
+                assignedLeads={categorizedLeads}
                 onEditLead={handleEditLead}
               />
             </div>

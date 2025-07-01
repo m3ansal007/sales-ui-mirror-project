@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useLeads } from '@/hooks/useLeads';
@@ -12,7 +11,7 @@ import { AssignedLeadsSection } from '@/components/AssignedLeadsSection';
 
 const AssignLeads = () => {
   const { user, userRole } = useAuth();
-  const { leads, assignedLeads, loading: leadsLoading, updateLead, refetch } = useLeads(user, userRole);
+  const { leads, categorizedLeads, loading: leadsLoading, updateLead, refetch } = useLeads();
   const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
@@ -34,19 +33,19 @@ const AssignLeads = () => {
 
   // Debug logging for Sales Associate view
   useEffect(() => {
-    if (userRole === 'Sales Associate') {
+    if (userRole === 'sales_associate') {
       console.log('Sales Associate Debug Info:', {
         userEmail: user?.email,
         userId: user?.id,
-        assignedLeadsCount: assignedLeads.length,
-        assignedLeads: assignedLeads,
+        assignedLeadsCount: categorizedLeads.assignedToMe.length,
+        assignedLeads: categorizedLeads.assignedToMe,
         teamMembers: teamMembers
       });
     }
-  }, [user, userRole, assignedLeads, teamMembers]);
+  }, [user, userRole, categorizedLeads.assignedToMe, teamMembers]);
 
   // Sales Associate sees only their assigned leads
-  if (userRole === 'Sales Associate') {
+  if (userRole === 'sales_associate') {
     return (
       <div className="min-h-screen bg-slate-950 flex">
         <Sidebar />
@@ -61,7 +60,7 @@ const AssignLeads = () => {
                 <p className="text-slate-300 text-sm">Debug Info:</p>
                 <p className="text-slate-400 text-xs">Email: {user?.email}</p>
                 <p className="text-slate-400 text-xs">User ID: {user?.id}</p>
-                <p className="text-slate-400 text-xs">Assigned Leads Count: {assignedLeads.length}</p>
+                <p className="text-slate-400 text-xs">Assigned Leads Count: {categorizedLeads.assignedToMe.length}</p>
                 <p className="text-slate-400 text-xs">Loading: {leadsLoading ? 'Yes' : 'No'}</p>
               </div>
             </div>
@@ -70,7 +69,7 @@ const AssignLeads = () => {
               <div className="text-center text-slate-400">Loading assigned leads...</div>
             ) : (
               <AssignedLeadsSection
-                assignedLeads={assignedLeads}
+                assignedLeads={categorizedLeads.assignedToMe}
                 onEditLead={() => {}} // Sales associates can't edit from this view
               />
             )}
