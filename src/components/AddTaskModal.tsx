@@ -19,8 +19,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const { user, userRole } = useAuth();
-  const { leads } = useLeads(user, userRole);
+  const { userRole } = useAuth();
+  const { leads } = useLeads();
   const [formData, setFormData] = useState({
     title: '',
     description: '',

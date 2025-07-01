@@ -15,9 +15,9 @@ const Team = () => {
 
   const filteredMembers = teamMembers.filter(member => {
     if (filter === 'All Members') return true;
-    if (filter === 'Active') return member.status === 'Active';
-    if (filter === 'Sales Managers') return member.role === 'Sales Manager';
-    if (filter === 'Sales Associates') return member.role === 'Sales Associate';
+    if (filter === 'Active') return member.status === 'active';
+    if (filter === 'Sales Managers') return member.role === 'sales_manager';
+    if (filter === 'Sales Associates') return member.role === 'sales_associate';
     return true;
   });
 
@@ -29,19 +29,28 @@ const Team = () => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Admin': return 'bg-purple-500/20 text-purple-400';
-      case 'Sales Manager': return 'bg-blue-500/20 text-blue-400';
-      case 'Sales Associate': return 'bg-green-500/20 text-green-400';
+      case 'admin': return 'bg-purple-500/20 text-purple-400';
+      case 'sales_manager': return 'bg-blue-500/20 text-blue-400';
+      case 'sales_associate': return 'bg-green-500/20 text-green-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'Admin': return '👑';
-      case 'Sales Manager': return '📊';
-      case 'Sales Associate': return '💼';
+      case 'admin': return '👑';
+      case 'sales_manager': return '📊';
+      case 'sales_associate': return '💼';
       default: return '👤';
+    }
+  };
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Admin';
+      case 'sales_manager': return 'Sales Manager';
+      case 'sales_associate': return 'Sales Associate';
+      default: return 'Unknown';
     }
   };
 
@@ -60,16 +69,16 @@ const Team = () => {
   };
 
   // Check if user has permission to manage team
-  const canManageTeam = userRole === 'Admin' || userRole === 'Sales Manager';
+  const canManageTeam = userRole === 'admin' || userRole === 'sales_manager';
 
-  // Calculate total team performance
-  const totalTeamStats = Object.values(memberPerformance).reduce((acc, perf) => ({
-    totalLeads: acc.totalLeads + (perf.leadsAssigned || 0),
-    totalConverted: acc.totalConverted + (perf.leadsConverted || 0),
-    totalRevenue: acc.totalRevenue + (perf.totalRevenue || 0),
-    totalTasks: acc.totalTasks + (perf.tasksTotal || 0),
-    totalCommunications: acc.totalCommunications + (perf.totalCommunications || 0),
-    totalAppointments: acc.totalAppointments + (perf.totalAppointments || 0)
+  // Calculate total team performance with safe property access
+  const totalTeamStats = Object.values(memberPerformance).reduce((acc, perf: any) => ({
+    totalLeads: acc.totalLeads + (perf?.leadsAssigned || 0),
+    totalConverted: acc.totalConverted + (perf?.leadsConverted || 0),
+    totalRevenue: acc.totalRevenue + (perf?.totalRevenue || 0),
+    totalTasks: acc.totalTasks + (perf?.tasksTotal || 0),
+    totalCommunications: acc.totalCommunications + (perf?.totalCommunications || 0),
+    totalAppointments: acc.totalAppointments + (perf?.totalAppointments || 0)
   }), { 
     totalLeads: 0, 
     totalConverted: 0, 
@@ -275,14 +284,12 @@ const Team = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                            {member.role}
+                            {getRoleDisplayName(member.role)}
                           </span>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            member.status === 'Active' ? 'bg-green-500/20 text-green-400' : 
-                            member.status === 'Away' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-red-500/20 text-red-400'
+                            member.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                           }`}>
-                            {member.status === 'Active' ? <UserCheck className="w-3 h-3 inline mr-1" /> : <UserX className="w-3 h-3 inline mr-1" />}
+                            {member.status === 'active' ? <UserCheck className="w-3 h-3 inline mr-1" /> : <UserX className="w-3 h-3 inline mr-1" />}
                             {member.status}
                           </span>
                         </div>
@@ -338,6 +345,7 @@ const Team = () => {
                       </div>
                     </div>
 
+                    
                     <div className="grid grid-cols-4 gap-2 pt-2">
                       <div className="text-center">
                         <p className="text-slate-400 text-xs">New</p>
@@ -457,14 +465,14 @@ const Team = () => {
                     {/* Role-specific information */}
                     <div className="mt-3 p-2 bg-slate-800/50 rounded-lg">
                       <p className="text-xs text-slate-400">
-                        {member.role === 'Admin' && '🔧 Full system access and team management'}
-                        {member.role === 'Sales Manager' && '📈 Team oversight and lead management'}
-                        {member.role === 'Sales Associate' && '💼 Individual lead and task management'}
+                        {member.role === 'admin' && '🔧 Full system access and team management'}
+                        {member.role === 'sales_manager' && '📈 Team oversight and lead management'}
+                        {member.role === 'sales_associate' && '💼 Individual lead and task management'}
                       </p>
                     </div>
 
                     {/* Debug info for admins */}
-                    {userRole === 'Admin' && (
+                    {userRole === 'admin' && (
                       <div className="mt-2 p-2 bg-slate-800/30 rounded text-xs text-slate-500">
                         Debug: Member ID: {member.id.slice(0, 8)}... | Email: {member.email} | Activities: {performance.recentActivities}
                       </div>

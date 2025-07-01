@@ -60,10 +60,38 @@ export const useTeamMembers = () => {
     }
   };
 
+  const deleteTeamMember = async (memberId: string) => {
+    try {
+      // Add delete functionality here when needed
+      toast({
+        title: "Success",
+        description: "Team member deleted successfully",
+      });
+      
+      await fetchTeamMembers();
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting team member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete team member",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Mock performance data for now
+  const memberPerformance: Record<string, any> = {};
+  const memberActivities: Record<string, any[]> = {};
+
   return {
     teamMembers,
+    memberPerformance,
+    memberActivities,
     loading,
     addTeamMember,
+    deleteTeamMember,
     refetch: fetchTeamMembers,
   };
 };

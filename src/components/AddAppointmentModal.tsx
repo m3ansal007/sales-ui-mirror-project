@@ -15,8 +15,8 @@ interface AddAppointmentModalProps {
 }
 
 export const AddAppointmentModal = ({ isOpen, onClose, onSubmit }: AddAppointmentModalProps) => {
-  const { user, userRole } = useAuth();
-  const { leads } = useLeads(user, userRole);
+  const { userRole } = useAuth();
+  const { leads } = useLeads();
   const [formData, setFormData] = useState({
     title: '',
     description: '',

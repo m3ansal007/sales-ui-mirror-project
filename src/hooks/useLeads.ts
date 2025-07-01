@@ -5,6 +5,9 @@ import { Lead, CreateLeadData } from '@/types/leads';
 import { fetchLeadsByRole, createLead as createLeadService, updateLead as updateLeadService, deleteLead as deleteLeadService } from '@/services/leadService';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Export Lead type for use in components
+export type { Lead } from '@/types/leads';
+
 export const useLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
