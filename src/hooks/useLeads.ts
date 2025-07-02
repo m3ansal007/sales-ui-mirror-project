@@ -14,34 +14,13 @@ export const useLeads = () => {
   const { toast } = useToast();
 
   const fetchLeads = useCallback(async () => {
-    if (!user) {
+    if (!user || !teamMember) {
       setLoading(false);
       return;
     }
 
-    // If teamMember is still loading, wait a bit
-    if (teamMember === null && user) {
-      // Give it a moment for teamMember to load
-      setTimeout(() => {
-        if (teamMember === null) {
-          console.log('No team member found, using default role');
-          setLoading(false);
-        }
-      }, 1000);
-      return;
-    }
-
     try {
-      const fetchedLeads = await fetchLeadsByRole(teamMember || {
-        id: '',
-        user_id: user.id,
-        role: 'sales_associate',
-        name: user.email?.split('@')[0] || 'User',
-        email: user.email || '',
-        status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      const fetchedLeads = await fetchLeadsByRole(teamMember);
       setLeads(fetchedLeads);
       
       console.log('Fetched leads count:', fetchedLeads.length);

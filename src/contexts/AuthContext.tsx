@@ -62,7 +62,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
         
-        // Always set loading to false after processing auth state change
         if (mounted) {
           setLoading(false);
         }
@@ -152,11 +151,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     console.log('AuthContext: Starting sign out...');
     
-    // Clear state immediately
     setUser(null);
     setSession(null);
     setTeamMember(null);
-    setLoading(false); // Ensure loading is false during sign out
+    setLoading(false);
     
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -165,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Sign out successful');
     }
     
-    // Navigate to auth page
     window.location.href = '/auth';
   };
 
