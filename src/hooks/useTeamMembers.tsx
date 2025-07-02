@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +16,7 @@ export interface TeamMember {
   created_at: string;
   updated_at: string;
   temp_password?: string;
+  auth_user_id?: string;
 }
 
 export const useTeamMembers = () => {
@@ -172,42 +174,19 @@ export const useTeamMembers = () => {
       if (fetchError) throw fetchError;
       if (!teamMember) throw new Error('Team member not found');
 
-      // Check if user already exists in auth.users
-      const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers();
-      
-      if (userCheckError) {
-        console.error('Error checking existing users:', userCheckError);
-        // Continue with sync attempt even if we can't check existing users
-      }
-
-      const userExists = existingUser?.users?.some(u => u.email === teamMember.email);
-
-      if (userExists) {
+      // Check if user already has an auth_user_id (account already created)
+      if (teamMember.auth_user_id) {
         toast.info('User account already exists for this team member');
         return;
       }
 
-      // Create user account
-      const tempPassword = teamMember.temp_password || `temp${Math.random().toString(36).slice(-8)}`;
-      
-      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: teamMember.email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: teamMember.name,
-          role: teamMember.role
-        }
+      // The database trigger will automatically create the user account
+      // We just need to trigger it by updating the team member record
+      await updateTeamMember(memberId, { 
+        temp_password: teamMember.temp_password || `temp${Math.random().toString(36).slice(-8)}`
       });
 
-      if (createError) throw createError;
-
-      // Update team member with temp password if it wasn't set
-      if (!teamMember.temp_password) {
-        await updateTeamMember(memberId, { temp_password: tempPassword });
-      }
-
-      toast.success(`User account created successfully. Temporary password: ${tempPassword}`);
+      toast.success('User account created successfully');
       
     } catch (err) {
       console.error('Error syncing team member:', err);

@@ -1,20 +1,19 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { useTeamMembers } from '@/hooks/useTeamMembers';
 
 interface AddTeamMemberModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModalProps) => {
+export const AddTeamMemberModal = ({ isOpen, onClose }: AddTeamMemberModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -25,44 +24,28 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
   });
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const { toast } = useToast();
-  const { user, userRole } = useAuth();
+  const { addTeamMember } = useTeamMembers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
     setLoading(true);
+    
     try {
       // Create team member record with the provided password in temp_password column
       // The database trigger will automatically create a user account using this password
-      const { error: teamError } = await supabase
-        .from('team_members')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          role: formData.role,
-          status: formData.status,
-          temp_password: formData.password, // Pass password to trigger
-          user_id: user.id // This is the manager's ID who's creating the team member
-        });
-
-      if (teamError) throw teamError;
+      await addTeamMember({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        status: formData.status,
+        temp_password: formData.password, // Pass password to trigger
+      });
 
       setShowSuccess(true);
-      toast({
-        title: "Success",
-        description: "Team member and login account created successfully!",
-      });
-
-      onSuccess();
+      toast.success('Team member and login account created successfully!');
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add team member",
-        variant: "destructive",
-      });
+      toast.error(error.message || 'Failed to add team member');
     } finally {
       setLoading(false);
     }
@@ -78,23 +61,11 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
       status: 'Active'
     });
     setShowSuccess(false);
-    onOpenChange(false);
+    onClose();
   };
-
-  // Get available roles based on current user's role
-  const getAvailableRoles = () => {
-    if (userRole === 'Admin') {
-      return ['Sales Manager', 'Sales Associate'];
-    } else if (userRole === 'Sales Manager') {
-      return ['Sales Associate'];
-    }
-    return ['Sales Associate']; // Default fallback
-  };
-
-  const availableRoles = getAvailableRoles();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-md">
         <DialogHeader>
           <DialogTitle>Add Team Member</DialogTitle>
@@ -188,13 +159,12 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {availableRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role === 'Sales Manager' && '📊 '}
-                      {role === 'Sales Associate' && '💼 '}
-                      {role}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Sales Manager">
+                    📊 Sales Manager
+                  </SelectItem>
+                  <SelectItem value="Sales Associate">
+                    💼 Sales Associate
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-slate-400 mt-1">
@@ -221,7 +191,7 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => onClose()}
                 className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 Cancel
@@ -240,5 +210,3 @@ const AddTeamMemberModal = ({ open, onOpenChange, onSuccess }: AddTeamMemberModa
     </Dialog>
   );
 };
-
-export default AddTeamMemberModal;
