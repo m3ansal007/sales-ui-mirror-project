@@ -1,444 +1,230 @@
-
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export interface TeamMember {
   id: string;
+  user_id: string;
   name: string;
   email: string;
   phone?: string;
   role: string;
   status: string;
   hire_date?: string;
-  auth_user_id?: string;
   created_at: string;
   updated_at: string;
-  user_id: string;
-}
-
-interface RealtimePayload {
-  eventType: string;
-  new?: { name?: string; [key: string]: any };
-  old?: { name?: string; [key: string]: any };
+  temp_password?: string;
 }
 
 export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [memberPerformance, setMemberPerformance] = useState<Record<string, any>>({});
-  const [memberActivities, setMemberActivities] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
-  const { user, userRole } = useAuth();
-  const { toast } = useToast();
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchTeamMembers = async () => {
     if (!user) return;
 
     try {
-      console.log('🔄 Fetching team members and performance data...');
-      
-      // Fetch team members created by this admin
-      const { data: teamData, error: teamError } = await supabase
+      setLoading(true);
+      const { data, error } = await supabase
         .from('team_members')
         .select('*')
-        .eq('user_id', user.id) // Only get team members created by this admin
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (teamError) throw teamError;
-      
-      // Cast the data to include auth_user_id
-      const typedTeamData = (teamData || []).map(member => ({
-        ...member,
-        auth_user_id: (member as any).auth_user_id || null
-      })) as TeamMember[];
-      
-      setTeamMembers(typedTeamData);
-      
-      console.log('📊 Found team members:', typedTeamData?.map(tm => ({ name: tm.name, email: tm.email, auth_user_id: tm.auth_user_id })));
-      
-      // Fetch comprehensive performance data for each team member
-      const performanceData: Record<string, any> = {};
-      const activitiesData: Record<string, any[]> = {};
-      
-      for (const member of typedTeamData || []) {
-        console.log(`📊 Fetching data for team member: ${member.name} (${member.email})`);
-        
-        // Use the stored auth_user_id instead of making admin API calls
-        const authUserId = member.auth_user_id;
-        
-        if (!authUserId) {
-          console.log(`⚠️ No auth_user_id found for ${member.email}, attempting to sync...`);
-          
-          // Try to sync the team member
-          try {
-            const { data: syncResult, error: syncError } = await supabase.functions.invoke('force_sync_team_member', {
-              body: { member_email: member.email }
-            });
-            
-            if (!syncError && syncResult) {
-              // Explicitly handle the function return type
-              const resultString = syncResult && typeof syncResult === 'string' 
-                ? syncResult 
-                : syncResult 
-                ? JSON.stringify(syncResult) 
-                : '';
-              console.log(`🔄 Sync result for ${member.email}:`, resultString);
-              
-              // If sync was successful, refetch the team member data
-              if (resultString.includes('SUCCESS')) {
-                const { data: updatedMember } = await supabase
-                  .from('team_members')
-                  .select('*')
-                  .eq('id', member.id)
-                  .single();
-                
-                if (updatedMember && (updatedMember as any).auth_user_id) {
-                  member.auth_user_id = (updatedMember as any).auth_user_id;
-                  console.log(`✅ Successfully synced ${member.email} with auth_user_id: ${member.auth_user_id}`);
-                }
-              }
-            }
-          } catch (syncError) {
-            console.error(`❌ Failed to sync ${member.email}:`, syncError);
-          }
-          
-          // If still no auth_user_id, set default performance data
-          if (!member.auth_user_id) {
-            performanceData[member.id] = {
-              leadsAssigned: 0,
-              leadsConverted: 0,
-              leadsNew: 0,
-              leadsContacted: 0,
-              leadsFollowUp: 0,
-              leadsLost: 0,
-              totalRevenue: 0,
-              averageDealSize: 0,
-              conversionRate: 0,
-              tasksTotal: 0,
-              tasksCompleted: 0,
-              tasksCompletionRate: 0,
-              totalCommunications: 0,
-              callsCompleted: 0,
-              emailsSent: 0,
-              totalAppointments: 0,
-              upcomingAppointments: 0,
-              completedAppointments: 0,
-              recentActivities: 0,
-              lastActivity: 'No activity',
-              performanceScore: 0,
-              authUserId: null,
-              hasAuthUser: false,
-              dataSource: 'no_auth_user'
-            };
-            continue;
-          }
-        }
-
-        console.log(`✅ Found auth user ID for ${member.email}: ${member.auth_user_id}`);
-
-        // Get all leads assigned to this team member OR created by them
-        let allLeads: any[] = [];
-        
-        // Method A: Leads assigned to this team member directly
-        const { data: assignedLeads, error: assignedError } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('assigned_team_member_id', member.id);
-
-        if (!assignedError && assignedLeads) {
-          allLeads = [...allLeads, ...assignedLeads];
-          console.log(`📋 Found ${assignedLeads.length} leads assigned to ${member.name}`);
-        }
-
-        // Method B: Leads created by the auth user
-        const { data: userLeads, error: userLeadsError } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('user_id', member.auth_user_id);
-
-        if (!userLeadsError && userLeads) {
-          // Merge and deduplicate
-          const newLeads = userLeads.filter(ul => !allLeads.some(al => al.id === ul.id));
-          allLeads = [...allLeads, ...newLeads];
-          console.log(`📋 Found ${userLeads.length} leads created by ${member.name} (${newLeads.length} new)`);
-        }
-
-        console.log(`📊 Total unique leads for ${member.name}: ${allLeads.length}`);
-
-        // Get tasks, communications, appointments for this team member
-        let tasks: any[] = [];
-        let communications: any[] = [];
-        let appointments: any[] = [];
-        let activities: any[] = [];
-
-        // Get tasks
-        const { data: tasksData } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('user_id', member.auth_user_id);
-        tasks = tasksData || [];
-
-        // Get communications
-        const { data: commsData } = await supabase
-          .from('communications')
-          .select('*')
-          .eq('user_id', member.auth_user_id);
-        communications = commsData || [];
-
-        // Get appointments
-        const { data: apptsData } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('user_id', member.auth_user_id);
-        appointments = apptsData || [];
-
-        // Get activities (both their own and admin activities about them)
-        const { data: activitiesData } = await supabase
-          .from('activities')
-          .select('*')
-          .or(`user_id.eq.${member.auth_user_id},user_id.eq.${user.id}`)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        activities = activitiesData || [];
-        memberActivities[member.id] = activities;
-
-        // Calculate comprehensive performance metrics
-        const convertedLeads = allLeads.filter(lead => lead.status === 'Converted');
-        const totalRevenue = convertedLeads
-          .filter(lead => lead.value)
-          .reduce((sum, lead) => sum + (lead.value || 0), 0);
-
-        const conversionRate = allLeads.length > 0 
-          ? Math.round((convertedLeads.length / allLeads.length) * 100)
-          : 0;
-
-        const completedTasks = tasks.filter(task => task.status === 'Completed');
-        const tasksCompletionRate = tasks.length > 0 
-          ? Math.round((completedTasks.length / tasks.length) * 100) 
-          : 0;
-
-        // Calculate performance score
-        const performanceScore = Math.min(100, Math.round(
-          (conversionRate * 0.4) + 
-          (tasksCompletionRate * 0.3) +
-          (Math.min(communications.length * 2, 20)) + 
-          (Math.min(appointments.length * 1.5, 15))
-        ));
-
-        performanceData[member.id] = {
-          // Lead metrics
-          leadsAssigned: allLeads.length,
-          leadsConverted: convertedLeads.length,
-          leadsNew: allLeads.filter(lead => lead.status === 'New').length,
-          leadsContacted: allLeads.filter(lead => lead.status === 'Contacted').length,
-          leadsFollowUp: allLeads.filter(lead => lead.status === 'Follow-Up').length,
-          leadsLost: allLeads.filter(lead => lead.status === 'Lost').length,
-          
-          // Financial metrics
-          totalRevenue,
-          averageDealSize: convertedLeads.length > 0 
-            ? Math.round(totalRevenue / convertedLeads.length)
-            : 0,
-          conversionRate,
-          
-          // Activity metrics
-          tasksTotal: tasks.length,
-          tasksCompleted: completedTasks.length,
-          tasksCompletionRate,
-          
-          // Communication metrics
-          totalCommunications: communications.length,
-          callsCompleted: communications.filter(comm => comm.type === 'call' && comm.status === 'Completed').length,
-          emailsSent: communications.filter(comm => comm.type === 'email' && comm.status === 'Sent').length,
-          
-          // Appointment metrics
-          totalAppointments: appointments.length,
-          upcomingAppointments: appointments.filter(apt => new Date(apt.start_time) > new Date()).length,
-          completedAppointments: appointments.filter(apt => apt.status === 'Completed').length,
-          
-          // Recent activity count
-          recentActivities: activities.length,
-          
-          // Last activity date
-          lastActivity: activities.length > 0 
-            ? new Date(activities[0].created_at).toLocaleDateString()
-            : 'No activity',
-            
-          // Performance score
-          performanceScore,
-
-          // Debug info
-          authUserId: member.auth_user_id,
-          hasAuthUser: !!member.auth_user_id,
-          dataSource: 'auth_user_id_stored'
-        };
-
-        console.log(`✅ Performance summary for ${member.name}:`, {
-          email: member.email,
-          authUserId: member.auth_user_id,
-          hasAuthUser: !!member.auth_user_id,
-          totalLeads: allLeads.length,
-          convertedLeads: convertedLeads.length,
-          totalRevenue,
-          conversionRate: `${conversionRate}%`,
-          tasks: tasks.length,
-          communications: communications.length,
-          appointments: appointments.length,
-          activities: activities.length,
-          performanceScore,
-          dataSource: 'auth_user_id_stored'
-        });
-      }
-      
-      setMemberPerformance(performanceData);
-      setMemberActivities(activitiesData);
-      console.log('🎉 Team performance data loaded successfully!');
-      
-    } catch (error) {
-      console.error('❌ Error fetching team members:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch team members data",
-        variant: "destructive",
-      });
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (err) {
+      console.error('Error fetching team members:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch team members');
     } finally {
       setLoading(false);
     }
   };
 
-  // Set up comprehensive real-time subscriptions
   useEffect(() => {
-    if (!user) return;
-
-    console.log('🚀 Setting up team performance tracking...');
     fetchTeamMembers();
-
-    // Subscribe to all relevant table changes
-    const leadsChannel = supabase
-      .channel('team-performance-leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('📋 Lead change detected:', typedPayload.eventType, typedPayload.new?.name || typedPayload.old?.name);
-        setTimeout(fetchTeamMembers, 1000); // Delay to ensure data consistency
-      })
-      .subscribe();
-
-    const tasksChannel = supabase
-      .channel('team-performance-tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('📋 Task change detected:', typedPayload.eventType);
-        setTimeout(fetchTeamMembers, 1000);
-      })
-      .subscribe();
-
-    const communicationsChannel = supabase
-      .channel('team-performance-communications')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'communications' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('📞 Communication change detected:', typedPayload.eventType);
-        setTimeout(fetchTeamMembers, 1000);
-      })
-      .subscribe();
-
-    const appointmentsChannel = supabase
-      .channel('team-performance-appointments')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('📅 Appointment change detected:', typedPayload.eventType);
-        setTimeout(fetchTeamMembers, 1000);
-      })
-      .subscribe();
-
-    const activitiesChannel = supabase
-      .channel('team-performance-activities')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('🎯 Activity change detected:', typedPayload.eventType);
-        setTimeout(fetchTeamMembers, 1000);
-      })
-      .subscribe();
-
-    const teamChannel = supabase
-      .channel('team-members-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, (payload: any) => {
-        const typedPayload = payload as RealtimePayload;
-        console.log('👥 Team member change detected:', typedPayload.eventType);
-        setTimeout(fetchTeamMembers, 1000);
-      })
-      .subscribe();
-
-    return () => {
-      console.log('🧹 Cleaning up team performance subscriptions...');
-      supabase.removeChannel(leadsChannel);
-      supabase.removeChannel(tasksChannel);
-      supabase.removeChannel(communicationsChannel);
-      supabase.removeChannel(appointmentsChannel);
-      supabase.removeChannel(activitiesChannel);
-      supabase.removeChannel(teamChannel);
-    };
   }, [user]);
 
-  const deleteTeamMember = async (memberId: string) => {
-    if (!user) return false;
+  const addTeamMember = async (memberData: Omit<TeamMember, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    if (!user) throw new Error('User not authenticated');
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('team_members')
-        .delete()
-        .eq('id', memberId);
+        .insert([{
+          ...memberData,
+          user_id: user.id
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
-      
-      setTeamMembers(prev => prev.filter(member => member.id !== memberId));
-      toast({
-        title: "Success",
-        description: "Team member deleted successfully",
-      });
-      return true;
-    } catch (error) {
-      console.error('Error deleting team member:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete team member",
-        variant: "destructive",
-      });
-      return false;
+
+      setTeamMembers(prev => [data, ...prev]);
+      toast.success('Team member added successfully');
+      return data;
+    } catch (err) {
+      console.error('Error adding team member:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add team member';
+      toast.error(errorMessage);
+      throw err;
     }
   };
 
-  // Debug function to check specific team member
-  const debugTeamMember = async (email: string) => {
+  const updateTeamMember = async (id: string, updates: Partial<TeamMember>) => {
+    if (!user) throw new Error('User not authenticated');
+
     try {
-      const { data, error } = await supabase.functions.invoke('debug_team_member_data', {
-        body: { member_email: email }
-      });
-      
-      if (!error && data) {
-        console.log(`🔍 Debug info for ${email}:`, data);
-        // Explicitly handle the function return type
-        return data && typeof data === 'string' 
-          ? data 
-          : data 
-          ? JSON.stringify(data) 
-          : '';
-      }
-    } catch (error) {
-      console.error('Debug error:', error);
+      const { data, error } = await supabase
+        .from('team_members')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTeamMembers(prev => 
+        prev.map(member => member.id === id ? data : member)
+      );
+      toast.success('Team member updated successfully');
+      return data;
+    } catch (err) {
+      console.error('Error updating team member:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update team member';
+      toast.error(errorMessage);
+      throw err;
     }
-    return '';
+  };
+
+  const deleteTeamMember = async (id: string) => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // First, check if there are any leads assigned to this team member
+      const { data: assignedLeads, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, name')
+        .eq('assigned_team_member_id', id)
+        .eq('user_id', user.id);
+
+      if (leadsError) throw leadsError;
+
+      if (assignedLeads && assignedLeads.length > 0) {
+        // If there are assigned leads, we need to unassign them first
+        const leadNames = assignedLeads.map(lead => lead.name).join(', ');
+        
+        // Ask user for confirmation or automatically unassign
+        const shouldProceed = confirm(
+          `This team member has ${assignedLeads.length} lead(s) assigned: ${leadNames}. ` +
+          'These leads will be unassigned. Do you want to continue?'
+        );
+
+        if (!shouldProceed) {
+          return;
+        }
+
+        // Unassign all leads from this team member
+        const { error: unassignError } = await supabase
+          .from('leads')
+          .update({ assigned_team_member_id: null })
+          .eq('assigned_team_member_id', id)
+          .eq('user_id', user.id);
+
+        if (unassignError) throw unassignError;
+      }
+
+      // Now delete the team member
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setTeamMembers(prev => prev.filter(member => member.id !== id));
+      toast.success('Team member deleted successfully');
+    } catch (err) {
+      console.error('Error deleting team member:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete team member';
+      toast.error(errorMessage);
+      throw err;
+    }
+  };
+
+  const syncTeamMember = async (memberId: string) => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // Get the team member details
+      const { data: teamMember, error: fetchError } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('id', memberId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!teamMember) throw new Error('Team member not found');
+
+      // Check if user already exists in auth.users
+      const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers();
+      
+      if (userCheckError) {
+        console.error('Error checking existing users:', userCheckError);
+        // Continue with sync attempt even if we can't check existing users
+      }
+
+      const userExists = existingUser?.users?.some(u => u.email === teamMember.email);
+
+      if (userExists) {
+        toast.info('User account already exists for this team member');
+        return;
+      }
+
+      // Create user account
+      const tempPassword = teamMember.temp_password || `temp${Math.random().toString(36).slice(-8)}`;
+      
+      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: teamMember.email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: teamMember.name,
+          role: teamMember.role
+        }
+      });
+
+      if (createError) throw createError;
+
+      // Update team member with temp password if it wasn't set
+      if (!teamMember.temp_password) {
+        await updateTeamMember(memberId, { temp_password: tempPassword });
+      }
+
+      toast.success(`User account created successfully. Temporary password: ${tempPassword}`);
+      
+    } catch (err) {
+      console.error('Error syncing team member:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sync team member';
+      toast.error(errorMessage);
+      throw err;
+    }
   };
 
   return {
     teamMembers,
-    memberPerformance,
-    memberActivities,
     loading,
-    refetch: fetchTeamMembers,
+    error,
+    addTeamMember,
+    updateTeamMember,
     deleteTeamMember,
-    debugTeamMember,
+    syncTeamMember,
+    refetch: fetchTeamMembers
   };
 };
-
