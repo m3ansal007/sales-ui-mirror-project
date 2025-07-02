@@ -1,28 +1,72 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { TeamMember } from '@/types/leads';
 
 export const getCurrentUserTeamMember = async (user: User): Promise<TeamMember | null> => {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
 
-  if (error) throw error;
-  return data as TeamMember;
+    if (error) {
+      // If no team member record exists, create a default one
+      if (error.code === 'PGRST116') {
+        console.log('No team member record found, creating default...');
+        
+        const defaultRole = user.user_metadata?.role || 'sales_associate';
+        const defaultName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+        
+        const { data: newMember, error: createError } = await supabase
+          .from('team_members')
+          .insert({
+            user_id: user.id,
+            name: defaultName,
+            email: user.email || '',
+            role: defaultRole,
+            status: 'Active'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating team member:', createError);
+          return null;
+        }
+
+        return newMember as TeamMember;
+      }
+      
+      console.error('Error fetching team member:', error);
+      return null;
+    }
+
+    return data as TeamMember;
+  } catch (error) {
+    console.error('Unexpected error in getCurrentUserTeamMember:', error);
+    return null;
+  }
 };
 
 export const getTeamMembers = async (): Promise<TeamMember[]> => {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select('*')
-    .eq('status', 'active')
-    .order('name');
+  try {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('*')
+      .eq('status', 'Active')
+      .order('name');
 
-  if (error) throw error;
-  return (data || []) as TeamMember[];
+    if (error) {
+      console.error('Error fetching team members:', error);
+      return [];
+    }
+    
+    return (data || []) as TeamMember[];
+  } catch (error) {
+    console.error('Unexpected error in getTeamMembers:', error);
+    return [];
+  }
 };
 
 export const createTeamMember = async (memberData: {
