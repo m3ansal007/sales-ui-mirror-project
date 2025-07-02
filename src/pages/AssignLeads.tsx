@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -176,7 +175,6 @@ const AssignLeads = () => {
                     <TableHead className="text-slate-300 w-12">
                       <Checkbox
                         checked={isAllSelected}
-                        indeterminate={isSomeSelected}
                         onCheckedChange={handleSelectAll}
                         className="border-slate-600"
                       />

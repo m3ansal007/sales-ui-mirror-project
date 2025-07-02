@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,10 +14,14 @@ interface TeamMember {
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   userRole: string | null;
   teamMember: TeamMember | null;
   loading: boolean;
+  signIn: (email: string, password: string, role?: string) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string, fullName: string, role?: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
+  checkUserRole: (email: string) => Promise<{ role?: string; error?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +36,7 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [teamMember, setTeamMember] = useState<TeamMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +83,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signIn = async (email: string, password: string, role?: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName: string, role?: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role || 'Sales Associate',
+          },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const checkUserRole = async (email: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-user-role', {
+        body: { email },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { role: data?.role };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -89,6 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error getting session:', error);
           if (mounted) {
             setUser(null);
+            setSession(null);
             setUserRole(null);
             setTeamMember(null);
             setLoading(false);
@@ -99,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           if (mounted) {
             setUser(session.user);
+            setSession(session);
           }
 
           // Fetch user role
@@ -117,6 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           if (mounted) {
             setUser(null);
+            setSession(null);
             setUserRole(null);
             setTeamMember(null);
           }
@@ -125,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error in initializeAuth:', error);
         if (mounted) {
           setUser(null);
+          setSession(null);
           setUserRole(null);
           setTeamMember(null);
         }
@@ -145,6 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
+          setSession(session);
           
           // Fetch user role
           const role = await fetchUserRole(session.user.id);
@@ -159,6 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setSession(null);
           setUserRole(null);
           setTeamMember(null);
           setLoading(false);
@@ -179,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Clear state immediately
       setUser(null);
+      setSession(null);
       setUserRole(null);
       setTeamMember(null);
       setLoading(false);
@@ -192,6 +261,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error signing out:', error);
       // Even if there's an error, clear the state and navigate
       setUser(null);
+      setSession(null);
       setUserRole(null);
       setTeamMember(null);
       setLoading(false);
@@ -201,10 +271,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
+    session,
     userRole,
     teamMember,
     loading,
+    signIn,
+    signUp,
     signOut,
+    checkUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
