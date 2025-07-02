@@ -1,85 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useLeads } from '@/hooks/useLeads';
 import { useTeamMembers } from '@/hooks/useTeamMembers';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import { AssignmentControls } from '@/components/assign-leads/AssignmentControls';
-import { LeadsTable } from '@/components/assign-leads/LeadsTable';
-import { SelectionSummary } from '@/components/assign-leads/SelectionSummary';
-import { AssignedLeadsSection } from '@/components/AssignedLeadsSection';
+import { UserCheck, Users } from 'lucide-react';
 
 const AssignLeads = () => {
-  const { user, userRole } = useAuth();
-  const { leads, categorizedLeads, loading: leadsLoading, updateLead, refetch } = useLeads();
-  const { teamMembers, loading: teamLoading, refetch: refetchTeamMembers } = useTeamMembers();
+  const { leads, loading: leadsLoading, updateLead } = useLeads();
+  const { teamMembers, loading: teamLoading } = useTeamMembers();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState(false);
   const { toast } = useToast();
 
-  // Memoize the refresh function to prevent infinite re-renders
-  const refreshData = useCallback(() => {
-    console.log('AssignLeads refreshing data...');
-    refetchTeamMembers();
-    refetch();
-  }, [refetchTeamMembers, refetch]);
-
-  // Only refresh on mount
-  useEffect(() => {
-    console.log('AssignLeads mounted, refreshing data...');
-    refreshData();
-  }, []); // Empty dependency array to only run on mount
-
-  // Debug logging for Sales Associate view
-  useEffect(() => {
-    if (userRole === 'sales_associate') {
-      console.log('Sales Associate Debug Info:', {
-        userEmail: user?.email,
-        userId: user?.id,
-        assignedLeadsCount: categorizedLeads.assignedToMe.length,
-        assignedLeads: categorizedLeads.assignedToMe,
-        teamMembers: teamMembers
-      });
-    }
-  }, [user, userRole, categorizedLeads.assignedToMe, teamMembers]);
-
-  // Sales Associate sees only their assigned leads
-  if (userRole === 'sales_associate') {
-    return (
-      <div className="min-h-screen bg-slate-950 flex">
-        <Sidebar />
-        
-        <div className="flex-1 overflow-hidden">
-          <div className="p-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">Assigned Leads to You</h1>
-              <p className="text-slate-400">Leads assigned to you by managers or admins</p>
-              {/* Debug info for Sales Associate */}
-              <div className="mt-4 p-4 bg-slate-800 rounded-lg">
-                <p className="text-slate-300 text-sm">Debug Info:</p>
-                <p className="text-slate-400 text-xs">Email: {user?.email}</p>
-                <p className="text-slate-400 text-xs">User ID: {user?.id}</p>
-                <p className="text-slate-400 text-xs">Assigned Leads Count: {categorizedLeads.assignedToMe.length}</p>
-                <p className="text-slate-400 text-xs">Loading: {leadsLoading ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-
-            {leadsLoading ? (
-              <div className="text-center text-slate-400">Loading assigned leads...</div>
-            ) : (
-              <AssignedLeadsSection
-                assignedLeads={categorizedLeads.assignedToMe}
-                onEditLead={() => {}} // Sales associates can't edit from this view
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Admin/Sales Manager view with assignment capabilities
   const handleSelectLead = (leadId: string, checked: boolean) => {
     if (checked) {
       setSelectedLeads(prev => [...prev, leadId]);
@@ -122,16 +60,13 @@ const AssignLeads = () => {
     try {
       for (const leadId of selectedLeads) {
         try {
-          console.log(`Assigning lead ${leadId} to team member ${selectedTeamMember}`);
           const success = await updateLead(leadId, {
             assigned_team_member_id: selectedTeamMember
           });
           if (success) {
             successCount++;
-            console.log(`Successfully assigned lead ${leadId}`);
           } else {
             errorCount++;
-            console.log(`Failed to assign lead ${leadId}`);
           }
         } catch (error) {
           errorCount++;
@@ -142,9 +77,6 @@ const AssignLeads = () => {
       // Clear selections
       setSelectedLeads([]);
       setSelectedTeamMember('');
-
-      // Force refresh to show updated assignments
-      await refetch();
 
       // Show result toast
       if (successCount > 0) {
@@ -173,33 +105,6 @@ const AssignLeads = () => {
     }
   };
 
-  const handleIndividualAssign = async (leadId: string, teamMemberId: string) => {
-    console.log(`Individual assign: lead ${leadId} to team member ${teamMemberId}`);
-    
-    const assignValue = teamMemberId === 'unassigned' ? null : teamMemberId;
-    
-    try {
-      const success = await updateLead(leadId, {
-        assigned_team_member_id: assignValue
-      });
-      
-      if (success) {
-        console.log(`Successfully assigned lead ${leadId} to ${teamMemberId}`);
-        toast({
-          title: "Lead assigned",
-          description: assignValue ? "Lead assigned successfully" : "Lead unassigned successfully",
-        });
-        
-        // Force refresh to show updated assignments
-        await refetch();
-      } else {
-        console.log(`Failed to assign lead ${leadId}`);
-      }
-    } catch (error) {
-      console.error(`Error assigning lead ${leadId}:`, error);
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'New': return 'bg-blue-500/20 text-blue-400';
@@ -213,20 +118,12 @@ const AssignLeads = () => {
 
   const getAssignedTeamMemberName = (teamMemberId: string | undefined) => {
     if (!teamMemberId) return 'Unassigned';
-    
     const member = teamMembers.find(tm => tm.id === teamMemberId);
-    return member ? member.name : 'Unknown Member';
+    return member ? member.name : 'Unknown';
   };
 
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
-
-  // Debug logging
-  console.log('AssignLeads render:', {
-    leadsCount: leads.length,
-    teamMembersCount: teamMembers.length,
-    userRole,
-    loading: leadsLoading || teamLoading
-  });
+  const isSomeSelected = selectedLeads.length > 0 && selectedLeads.length < leads.length;
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
@@ -239,31 +136,106 @@ const AssignLeads = () => {
             <p className="text-slate-400">Assign leads to team members for better management</p>
           </div>
 
-          <AssignmentControls
-            selectedLeads={selectedLeads}
-            selectedTeamMember={selectedTeamMember}
-            setSelectedTeamMember={setSelectedTeamMember}
-            teamMembers={teamMembers}
-            isAssigning={isAssigning}
-            onBulkAssign={handleBulkAssign}
-          />
+          {/* Assignment Controls */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-blue-400" />
+                <span className="text-white font-medium">Bulk Assignment</span>
+              </div>
+              <Select value={selectedTeamMember} onValueChange={setSelectedTeamMember}>
+                <SelectTrigger className="w-64 bg-slate-800 border-slate-700">
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name} ({member.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleBulkAssign}
+                disabled={isAssigning || selectedLeads.length === 0 || !selectedTeamMember}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                {isAssigning ? 'Assigning...' : `Assign ${selectedLeads.length} Lead${selectedLeads.length !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
+          </div>
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             {leadsLoading || teamLoading ? (
               <div className="p-8 text-center text-slate-400">Loading leads and team members...</div>
             ) : (
-              <LeadsTable
-                leads={leads}
-                teamMembers={teamMembers}
-                selectedLeads={selectedLeads}
-                userRole={userRole}
-                isAllSelected={isAllSelected}
-                onSelectAll={handleSelectAll}
-                onSelectLead={handleSelectLead}
-                onIndividualAssign={handleIndividualAssign}
-                getStatusColor={getStatusColor}
-                getAssignedTeamMemberName={getAssignedTeamMemberName}
-              />
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-800">
+                    <TableHead className="text-slate-300 w-12">
+                      <Checkbox
+                        checked={isAllSelected}
+                        indeterminate={isSomeSelected}
+                        onCheckedChange={handleSelectAll}
+                        className="border-slate-600"
+                      />
+                    </TableHead>
+                    <TableHead className="text-slate-300">Name</TableHead>
+                    <TableHead className="text-slate-300">Company</TableHead>
+                    <TableHead className="text-slate-300">Contact</TableHead>
+                    <TableHead className="text-slate-300">Status</TableHead>
+                    <TableHead className="text-slate-300">Currently Assigned</TableHead>
+                    <TableHead className="text-slate-300">Assign To</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((lead) => (
+                    <TableRow key={lead.id} className="border-slate-800 hover:bg-slate-800/50">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedLeads.includes(lead.id)}
+                          onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
+                          className="border-slate-600"
+                        />
+                      </TableCell>
+                      <TableCell className="text-white font-medium">{lead.name}</TableCell>
+                      <TableCell className="text-slate-300">{lead.company || '-'}</TableCell>
+                      <TableCell className="text-slate-300">{lead.email || lead.phone || '-'}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
+                          {lead.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-slate-300">
+                        {getAssignedTeamMemberName(lead.assigned_team_member_id)}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={lead.assigned_team_member_id || ''}
+                          onValueChange={(value) => {
+                            updateLead(lead.id, {
+                              assigned_team_member_id: value || null
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="w-40 bg-slate-800 border-slate-700">
+                            <SelectValue placeholder="Select member" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Unassigned</SelectItem>
+                            {teamMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
             
             {!leadsLoading && !teamLoading && leads.length === 0 && (
@@ -273,10 +245,22 @@ const AssignLeads = () => {
             )}
           </div>
 
-          <SelectionSummary
-            selectedCount={selectedLeads.length}
-            onClearSelection={() => setSelectedLeads([])}
-          />
+          {selectedLeads.length > 0 && (
+            <div className="mt-4 p-4 bg-slate-800 border border-slate-700 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300">
+                  {selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedLeads([])}
+                  className="border-slate-600 text-slate-300"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface AddAppointmentModalProps {
   isOpen: boolean;
@@ -15,7 +14,6 @@ interface AddAppointmentModalProps {
 }
 
 export const AddAppointmentModal = ({ isOpen, onClose, onSubmit }: AddAppointmentModalProps) => {
-  const { userRole } = useAuth();
   const { leads } = useLeads();
   const [formData, setFormData] = useState({
     title: '',

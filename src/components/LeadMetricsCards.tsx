@@ -1,80 +1,143 @@
-import React from 'react';
-import { Users, TrendingUp, Clock, DollarSign, Target, Award } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLeads } from '@/hooks/useLeads';
+import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useLeads } from "@/hooks/useLeads";
+import { useMemo, useEffect, useState, useRef } from "react";
 
-interface LeadMetricsCardsProps {
-  leads?: any[];
-}
+export const LeadMetricsCards = () => {
+  const navigate = useNavigate();
+  const { leads } = useLeads();
+  const [animateCount, setAnimateCount] = useState(false);
+  const previousCountRef = useRef(0);
 
-export const LeadMetricsCards: React.FC<LeadMetricsCardsProps> = ({ leads: propLeads }) => {
-  const { userRole } = useAuth();
-  const { leads: hookLeads, loading } = useLeads();
-  
-  const leads = propLeads || hookLeads;
+  // Trigger animation when leads count changes
+  useEffect(() => {
+    const currentCount = leads.length;
+    const previousCount = previousCountRef.current;
+    
+    console.log('Leads count changed:', previousCount, '->', currentCount);
+    
+    // Only animate if count increased and we have a valid previous count
+    if (currentCount > previousCount && previousCount > 0) {
+      console.log('Triggering animation for lead count increase');
+      setAnimateCount(true);
+      const timer = setTimeout(() => {
+        console.log('Stopping animation');
+        setAnimateCount(false);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Always update the ref after checking
+    previousCountRef.current = currentCount;
+  }, [leads.length]); // Only depend on leads.length
 
-  const totalLeads = leads?.length || 0;
-  const newLeads = leads?.filter(lead => lead.status === 'New').length || 0;
-  const contactedLeads = leads?.filter(lead => lead.status === 'Contacted').length || 0;
-  const convertedLeads = leads?.filter(lead => lead.status === 'Converted').length || 0;
-  const totalValue = leads?.reduce((sum, lead) => sum + (lead.value || 0), 0) || 0;
+  const metrics = useMemo(() => {
+    const totalLeads = leads.length;
+    const hotLeads = leads.filter(lead => lead.status === 'Contacted' || lead.status === 'Follow-Up').length;
+    const convertedLeads = leads.filter(lead => lead.status === 'Converted').length;
+    
+    // Calculate follow-ups due today (mock for now since we don't have tasks implemented)
+    const followUpsToday = leads.filter(lead => lead.status === 'Follow-Up').length;
+    
+    // Calculate upcoming meetings (mock for now since we don't have calendar implemented)
+    const upcomingMeetings = Math.floor(totalLeads * 0.1); // Rough estimate
+
+    // Calculate total revenue in INR
+    const totalRevenue = leads
+      .filter(lead => lead.status === 'Converted' && lead.value)
+      .reduce((sum, lead) => sum + (lead.value || 0), 0);
+
+    const formatCurrency = (amount: number) => {
+      if (amount >= 1000) {
+        return `₹${(amount / 1000).toFixed(1)}k`;
+      }
+      return `₹${amount.toLocaleString('en-IN')}`;
+    };
+
+    return [
+      {
+        title: "Total Leads",
+        value: totalLeads.toString(),
+        change: totalLeads === 0 ? "Start adding leads" : `+${Math.floor(totalLeads * 0.1)} this week`,
+        icon: Users,
+        color: "from-blue-500 to-blue-600",
+        bgColor: "bg-blue-500/10",
+        borderColor: "border-blue-500/30",
+        onClick: () => navigate("/leads"),
+        animate: animateCount
+      },
+      {
+        title: "Hot Leads",
+        value: hotLeads.toString(),
+        change: hotLeads === 0 ? "No hot leads yet" : `${Math.round((hotLeads/totalLeads) * 100)}% of total`,
+        icon: Flame,
+        color: "from-red-500 to-orange-600",
+        bgColor: "bg-red-500/10",
+        borderColor: "border-red-500/30",
+        onClick: () => navigate("/leads?status=Contacted")
+      },
+      {
+        title: "Follow-Ups Today",
+        value: followUpsToday.toString(),
+        change: followUpsToday === 0 ? "No follow-ups scheduled" : "Need attention",
+        icon: Clock,
+        color: "from-yellow-500 to-orange-600",
+        bgColor: "bg-yellow-500/10",
+        borderColor: "border-yellow-500/30",
+        onClick: () => navigate("/tasks")
+      },
+      {
+        title: "Revenue (INR)",
+        value: formatCurrency(totalRevenue),
+        change: convertedLeads === 0 ? "No conversions yet" : `${convertedLeads} conversions`,
+        icon: TrendingUp,
+        color: "from-green-500 to-green-600",
+        bgColor: "bg-green-500/10",
+        borderColor: "border-green-500/30",
+        onClick: () => navigate("/pipeline")
+      },
+      {
+        title: "Upcoming Meetings",
+        value: upcomingMeetings.toString(),
+        change: upcomingMeetings === 0 ? "No meetings scheduled" : "This week",
+        icon: Calendar,
+        color: "from-purple-500 to-purple-600",
+        bgColor: "bg-purple-500/10",
+        borderColor: "border-purple-500/30",
+        onClick: () => navigate("/calendar")
+      }
+    ];
+  }, [leads, navigate, animateCount]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/* Total Leads */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="p-3 w-12 h-12 rounded-full bg-blue-500/20 text-blue-400">
-          <Users className="w-6 h-6" />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      {metrics.map((metric, index) => (
+        <div
+          key={index}
+          onClick={metric.onClick}
+          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
+            metric.animate ? 'animate-pulse scale-105' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color} transition-all duration-300 ${
+              metric.animate ? 'scale-110 shadow-lg' : ''
+            }`}>
+              <metric.icon className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <div>
+            <p className="text-slate-400 text-sm mb-1">{metric.title}</p>
+            <p className={`text-white text-2xl font-bold mb-1 transition-all duration-300 ${
+              metric.animate ? 'scale-110 text-blue-400' : ''
+            }`}>
+              {metric.value}
+            </p>
+            <p className="text-slate-500 text-xs">{metric.change}</p>
+          </div>
         </div>
-        <div>
-          <h4 className="text-slate-400 text-sm">Total Leads</h4>
-          <p className="text-white font-medium text-lg">{totalLeads}</p>
-        </div>
-      </div>
-
-      {/* New Leads */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="p-3 w-12 h-12 rounded-full bg-yellow-500/20 text-yellow-400">
-          <Clock className="w-6 h-6" />
-        </div>
-        <div>
-          <h4 className="text-slate-400 text-sm">New Leads</h4>
-          <p className="text-white font-medium text-lg">{newLeads}</p>
-        </div>
-      </div>
-
-      {/* Contacted Leads */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="p-3 w-12 h-12 rounded-full bg-orange-500/20 text-orange-400">
-          <TrendingUp className="w-6 h-6" />
-        </div>
-        <div>
-          <h4 className="text-slate-400 text-sm">Contacted Leads</h4>
-          <p className="text-white font-medium text-lg">{contactedLeads}</p>
-        </div>
-      </div>
-
-      {/* Converted Leads */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="p-3 w-12 h-12 rounded-full bg-green-500/20 text-green-400">
-          <Target className="w-6 h-6" />
-        </div>
-        <div>
-          <h4 className="text-slate-400 text-sm">Converted Leads</h4>
-          <p className="text-white font-medium text-lg">{convertedLeads}</p>
-        </div>
-      </div>
-
-      {/* Total Value */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="p-3 w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400">
-          <DollarSign className="w-6 h-6" />
-        </div>
-        <div>
-          <h4 className="text-slate-400 text-sm">Total Value</h4>
-          <p className="text-white font-medium text-lg">₹{totalValue.toLocaleString()}</p>
-        </div>
-      </div>
+      ))}
     </div>
   );
 };

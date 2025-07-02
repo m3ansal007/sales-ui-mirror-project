@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -19,7 +19,6 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const { userRole } = useAuth();
   const { leads } = useLeads();
   const [formData, setFormData] = useState({
     title: '',
