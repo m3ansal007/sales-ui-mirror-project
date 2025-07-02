@@ -1,9 +1,8 @@
 
-import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest, UserCheck } from "lucide-react";
+import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, MessageSquare, Briefcase, Phone, Mail, MessageCircle, UserPlus, GitPullRequest } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { AuthButton } from "@/components/AuthButton";
 
 export const Sidebar = () => {
@@ -15,7 +14,6 @@ export const Sidebar = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole } = useAuth();
   
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -40,11 +38,6 @@ export const Sidebar = () => {
     { label: 'Converted', status: 'Converted' },
     { label: 'Lost', status: 'Lost' }
   ];
-
-  // Check permissions based on user role
-  const canAccessTeam = userRole === 'Admin' || userRole === 'Sales Manager';
-  const canAccessReports = userRole === 'Admin' || userRole === 'Sales Manager';
-  const canAccessSettings = userRole === 'Admin';
 
   return (
     <div className={cn("bg-slate-900 border-r border-slate-800 h-screen transition-all duration-300 flex flex-col overflow-y-auto", isCollapsed ? "w-16" : "w-64")}>
@@ -83,10 +76,6 @@ export const Sidebar = () => {
                 <button onClick={() => navigate("/leads")} className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center gap-2">
                   <UserPlus className="w-3 h-3" />
                   Add New Lead
-                </button>
-                <button onClick={() => navigate("/assign-leads")} className={cn("w-full text-left p-2 text-sm rounded flex items-center gap-2 transition-colors", isActive("/assign-leads") ? "text-white bg-slate-800" : "text-slate-400 hover:text-white hover:bg-slate-800")}>
-                  <UserCheck className="w-3 h-3" />
-                  Assign Leads
                 </button>
                 <button onClick={() => toggleSection('leadStages')} className="w-full text-left p-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded flex items-center justify-between">
                   Lead Stages
@@ -149,35 +138,31 @@ export const Sidebar = () => {
             {!isCollapsed && <span className="text-left">Calendar & Appointments</span>}
           </button>
 
-          {/* Reports & Analytics - Only for Admin and Sales Manager */}
-          {canAccessReports && (
-            <button onClick={() => navigate("/reports")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/reports") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
-              <BarChart3 className="w-4 h-4" />
-              {!isCollapsed && <span>Reports & Analytics</span>}
-            </button>
-          )}
+          {/* Reports & Analytics */}
+          <button onClick={() => navigate("/reports")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/reports") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
+            <BarChart3 className="w-4 h-4" />
+            {!isCollapsed && <span>Reports & Analytics</span>}
+          </button>
 
-          {/* Team & Roles - Only for Admin and Sales Manager */}
-          {canAccessTeam && (
-            <button onClick={() => navigate("/team")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/team") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
-              <Briefcase className="w-4 h-4" />
-              {!isCollapsed && <span>Team & Roles</span>}
-            </button>
-          )}
+          {/* Team & Roles */}
+          <button onClick={() => navigate("/team")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/team") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
+            <Briefcase className="w-4 h-4" />
+            {!isCollapsed && <span>Team & Roles</span>}
+          </button>
 
-          {/* Settings - Only for Admin */}
-          {canAccessSettings && (
-            <button onClick={() => navigate("/settings")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/settings") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
-              <Settings className="w-4 h-4" />
-              {!isCollapsed && <span>Settings</span>}
-            </button>
-          )}
+          {/* Settings */}
+          <button onClick={() => navigate("/settings")} className={cn("w-full flex items-center gap-2 p-3 rounded-lg transition-colors", isActive("/settings") ? "bg-slate-800 text-white" : "hover:bg-slate-800 text-slate-300")}>
+            <Settings className="w-4 h-4" />
+            {!isCollapsed && <span>Settings</span>}
+          </button>
         </div>
       </div>
 
       {/* Add auth button at the bottom when not collapsed */}
       {!isCollapsed && (
-        <AuthButton />
+        <div className="border-t border-slate-800">
+          <AuthButton />
+        </div>
       )}
     </div>
   );

@@ -10,7 +10,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AllLeads from "./pages/AllLeads";
-import AssignLeads from "./pages/AssignLeads";
 import TasksFollowUps from "./pages/TasksFollowUps";
 import SalesPipeline from "./pages/SalesPipeline";
 import Calendar from "./pages/Calendar";
@@ -38,11 +37,6 @@ const App = () => (
             <Route path="/leads" element={
               <ProtectedRoute>
                 <AllLeads />
-              </ProtectedRoute>
-            } />
-            <Route path="/assign-leads" element={
-              <ProtectedRoute>
-                <AssignLeads />
               </ProtectedRoute>
             } />
             <Route path="/tasks" element={

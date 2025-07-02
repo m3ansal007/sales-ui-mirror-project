@@ -1,3 +1,4 @@
+
 import { BarChart3, TrendingUp, Users, DollarSign } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useLeads } from "@/hooks/useLeads";
@@ -18,19 +19,19 @@ const Reports = () => {
     const convertedLeads = leads.filter(lead => lead.status === 'Converted').length;
     const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
     
-    // Calculate total revenue from converted leads (in INR)
+    // Calculate total revenue from converted leads
     const totalRevenue = leads
       .filter(lead => lead.status === 'Converted' && lead.value)
       .reduce((sum, lead) => sum + (lead.value || 0), 0);
     
-    // Calculate average deal size (in INR)
+    // Calculate average deal size
     const avgDealSize = convertedLeads > 0 ? Math.round(totalRevenue / convertedLeads) : 0;
     
     // Calculate growth percentages (mock comparison with last month)
-    const leadsGrowth = totalLeads > 0 ? Math.round(Math.random() * 20) + 5 : 0; // 5-25% growth
-    const conversionGrowth = conversionRate > 0 ? Math.round(Math.random() * 15) + 2 : 0; // 2-17% growth
-    const revenueGrowth = totalRevenue > 0 ? Math.round(Math.random() * 25) + 8 : 0; // 8-33% growth
-    const dealSizeGrowth = avgDealSize > 0 ? Math.round(Math.random() * 12) + 3 : 0; // 3-15% growth
+    const leadsGrowth = Math.round(Math.random() * 20) + 5; // 5-25% growth
+    const conversionGrowth = Math.round(Math.random() * 15) + 2; // 2-17% growth
+    const revenueGrowth = Math.round(Math.random() * 25) + 8; // 8-33% growth
+    const dealSizeGrowth = Math.round(Math.random() * 12) + 3; // 3-15% growth
 
     return {
       totalLeads,
@@ -92,13 +93,6 @@ const Reports = () => {
       .slice(0, 4); // Top 4 performers
   }, [leads]);
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000) {
-      return `₹${(amount / 1000).toFixed(1)}k`;
-    }
-    return `₹${amount.toLocaleString('en-IN')}`;
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 flex">
       <Sidebar />
@@ -107,7 +101,7 @@ const Reports = () => {
         <div className="p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Reports & Analytics</h1>
-            <p className="text-slate-400">Analyze your sales performance and team metrics (Currency: Indian Rupees ₹)</p>
+            <p className="text-slate-400">Analyze your sales performance and team metrics</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -120,9 +114,7 @@ const Reports = () => {
               <div>
                 <p className="text-slate-400 text-sm mb-1">Total Leads</p>
                 <p className="text-white text-2xl font-bold mb-1">{analytics.totalLeads}</p>
-                <p className={`text-xs ${analytics.leadsGrowth > 0 ? 'text-green-400' : 'text-slate-500'}`}>
-                  {analytics.leadsGrowth > 0 ? `+${analytics.leadsGrowth}% this month` : 'No growth data'}
-                </p>
+                <p className="text-green-400 text-xs">+{analytics.leadsGrowth}% this month</p>
               </div>
             </div>
 
@@ -135,9 +127,7 @@ const Reports = () => {
               <div>
                 <p className="text-slate-400 text-sm mb-1">Conversion Rate</p>
                 <p className="text-white text-2xl font-bold mb-1">{analytics.conversionRate}%</p>
-                <p className={`text-xs ${analytics.conversionGrowth > 0 ? 'text-green-400' : 'text-slate-500'}`}>
-                  {analytics.conversionGrowth > 0 ? `+${analytics.conversionGrowth}% this month` : 'No growth data'}
-                </p>
+                <p className="text-green-400 text-xs">+{analytics.conversionGrowth}% this month</p>
               </div>
             </div>
 
@@ -148,13 +138,11 @@ const Reports = () => {
                 </div>
               </div>
               <div>
-                <p className="text-slate-400 text-sm mb-1">Revenue (INR)</p>
+                <p className="text-slate-400 text-sm mb-1">Revenue</p>
                 <p className="text-white text-2xl font-bold mb-1">
-                  {formatCurrency(analytics.totalRevenue)}
+                  ${analytics.totalRevenue >= 1000 ? `${Math.round(analytics.totalRevenue / 1000)}k` : analytics.totalRevenue}
                 </p>
-                <p className={`text-xs ${analytics.revenueGrowth > 0 ? 'text-green-400' : 'text-slate-500'}`}>
-                  {analytics.revenueGrowth > 0 ? `+${analytics.revenueGrowth}% this month` : 'No growth data'}
-                </p>
+                <p className="text-green-400 text-xs">+{analytics.revenueGrowth}% this month</p>
               </div>
             </div>
 
@@ -165,13 +153,11 @@ const Reports = () => {
                 </div>
               </div>
               <div>
-                <p className="text-slate-400 text-sm mb-1">Avg. Deal Size (INR)</p>
+                <p className="text-slate-400 text-sm mb-1">Avg. Deal Size</p>
                 <p className="text-white text-2xl font-bold mb-1">
-                  {formatCurrency(analytics.avgDealSize)}
+                  ${analytics.avgDealSize >= 1000 ? `${(analytics.avgDealSize / 1000).toFixed(1)}k` : analytics.avgDealSize}
                 </p>
-                <p className={`text-xs ${analytics.dealSizeGrowth > 0 ? 'text-green-400' : 'text-slate-500'}`}>
-                  {analytics.dealSizeGrowth > 0 ? `+${analytics.dealSizeGrowth}% this month` : 'No growth data'}
-                </p>
+                <p className="text-green-400 text-xs">+{analytics.dealSizeGrowth}% this month</p>
               </div>
             </div>
           </div>
@@ -207,7 +193,7 @@ const Reports = () => {
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <h3 className="text-white font-medium mb-4">Team Performance (INR)</h3>
+              <h3 className="text-white font-medium mb-4">Team Performance</h3>
               <div className="space-y-4">
                 {teamPerformance.length === 0 ? (
                   <p className="text-slate-400 text-sm">No team performance data available</p>
@@ -219,7 +205,7 @@ const Reports = () => {
                         <p className="text-slate-400 text-sm">{member.converted} leads converted</p>
                       </div>
                       <span className="text-green-400 font-medium">
-                        {formatCurrency(member.revenue)}
+                        ${member.revenue >= 1000 ? `${Math.round(member.revenue / 1000)}k` : member.revenue}
                       </span>
                     </div>
                   ))
@@ -227,15 +213,6 @@ const Reports = () => {
               </div>
             </div>
           </div>
-
-          {leads.length === 0 && (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-              <BarChart3 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-white text-lg font-medium mb-2">No Data Available</h3>
-              <p className="text-slate-400 mb-4">Start by adding leads to see comprehensive analytics and reports</p>
-              <p className="text-slate-500 text-sm">All financial data will be displayed in Indian Rupees (₹)</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

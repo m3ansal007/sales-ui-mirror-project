@@ -1,3 +1,4 @@
+
 import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useLeads";
@@ -16,8 +17,7 @@ export const LeadMetricsCards = () => {
     
     console.log('Leads count changed:', previousCount, '->', currentCount);
     
-    // Only animate if count increased and we have a valid previous count
-    if (currentCount > previousCount && previousCount > 0) {
+    if (currentCount > previousCount && previousCount >= 0) {
       console.log('Triggering animation for lead count increase');
       setAnimateCount(true);
       const timer = setTimeout(() => {
@@ -25,10 +25,13 @@ export const LeadMetricsCards = () => {
         setAnimateCount(false);
       }, 1000);
       
+      // Update the ref for next comparison
+      previousCountRef.current = currentCount;
+      
       return () => clearTimeout(timer);
     }
     
-    // Always update the ref after checking
+    // Update ref if no animation triggered
     previousCountRef.current = currentCount;
   }, [leads.length]); // Only depend on leads.length
 
@@ -42,18 +45,6 @@ export const LeadMetricsCards = () => {
     
     // Calculate upcoming meetings (mock for now since we don't have calendar implemented)
     const upcomingMeetings = Math.floor(totalLeads * 0.1); // Rough estimate
-
-    // Calculate total revenue in INR
-    const totalRevenue = leads
-      .filter(lead => lead.status === 'Converted' && lead.value)
-      .reduce((sum, lead) => sum + (lead.value || 0), 0);
-
-    const formatCurrency = (amount: number) => {
-      if (amount >= 1000) {
-        return `₹${(amount / 1000).toFixed(1)}k`;
-      }
-      return `₹${amount.toLocaleString('en-IN')}`;
-    };
 
     return [
       {
@@ -88,9 +79,9 @@ export const LeadMetricsCards = () => {
         onClick: () => navigate("/tasks")
       },
       {
-        title: "Revenue (INR)",
-        value: formatCurrency(totalRevenue),
-        change: convertedLeads === 0 ? "No conversions yet" : `${convertedLeads} conversions`,
+        title: "Converted Leads",
+        value: convertedLeads.toString(),
+        change: convertedLeads === 0 ? "No conversions yet" : `${Math.round((convertedLeads/totalLeads) * 100)}% conversion rate`,
         icon: TrendingUp,
         color: "from-green-500 to-green-600",
         bgColor: "bg-green-500/10",
