@@ -7,6 +7,8 @@ import { BottomBar } from "@/components/BottomBar";
 import { ChatInterface } from "@/components/ChatInterface";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ColorProvider } from "@/contexts/ColorContext";
+import { WelcomeHeader } from "@/components/WelcomeHeader";
+import { QuickActions } from "@/components/QuickActions";
 
 const DashboardContent = () => {
   return (
@@ -15,11 +17,8 @@ const DashboardContent = () => {
       
       <div className="flex-1 overflow-hidden">
         <div className="p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Lead Management Dashboard</h1>
-            <p className="text-slate-400">Track and manage your sales leads with AI-powered insights</p>
-          </div>
-
+          <WelcomeHeader />
+          <QuickActions />
           <LeadMetricsCards />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">

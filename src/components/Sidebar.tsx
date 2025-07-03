@@ -3,7 +3,7 @@ import { ChevronDown, BarChart3, Users, Calendar, Settings, PieChart, Target, Me
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AuthButton } from "@/components/AuthButton";
+import { UserMenu } from "@/components/UserMenu";
 
 export const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -27,7 +27,6 @@ export const Sidebar = () => {
   };
 
   const handleLeadStageClick = (status: string) => {
-    // Navigate to leads page with status filter
     navigate(`/leads?status=${status}`);
   };
 
@@ -158,10 +157,10 @@ export const Sidebar = () => {
         </div>
       </div>
 
-      {/* Add auth button at the bottom when not collapsed */}
+      {/* User menu at the bottom when not collapsed */}
       {!isCollapsed && (
-        <div className="border-t border-slate-800">
-          <AuthButton />
+        <div className="border-t border-slate-800 p-4">
+          <UserMenu />
         </div>
       )}
     </div>
