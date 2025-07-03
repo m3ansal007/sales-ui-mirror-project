@@ -28,6 +28,15 @@ export const QuickActions = () => {
     return success;
   };
 
+  const handleAddAppointment = async (appointmentData: any) => {
+    try {
+      await createAppointment(appointmentData);
+      setShowAddAppointment(false);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    }
+  };
+
   return (
     <>
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-8">
@@ -74,7 +83,7 @@ export const QuickActions = () => {
       <AddAppointmentModal
         isOpen={showAddAppointment}
         onClose={() => setShowAddAppointment(false)}
-        onSubmit={createAppointment}
+        onSubmit={handleAddAppointment}
       />
     </>
   );
