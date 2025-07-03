@@ -374,16 +374,16 @@ export const ImportLeadsModal: React.FC<ImportLeadsModalProps> = ({
               </Button>
             </div>
           </div>
-        ) : importResults ? (
+        ) : (
           <div className="space-y-4">
             <div className="text-center">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h3 className="text-white text-xl font-medium mb-2">Import Complete!</h3>
               <div className="space-y-2">
                 <p className="text-green-400">
-                  ✅ {importResults.successful} leads imported successfully
+                  ✅ {importResults?.successful} leads imported successfully
                 </p>
-                {importResults.failed > 0 && (
+                {importResults && importResults.failed > 0 && (
                   <p className="text-red-400">
                     ❌ {importResults.failed} leads failed to import
                   </p>
@@ -391,7 +391,7 @@ export const ImportLeadsModal: React.FC<ImportLeadsModalProps> = ({
               </div>
             </div>
 
-            {importResults.errors.length > 0 && (
+            {importResults && importResults.errors.length > 0 && (
               <div className="max-h-48 overflow-y-auto bg-slate-800 rounded-lg p-4">
                 <h4 className="text-red-400 font-medium mb-2">Import Errors:</h4>
                 <ul className="text-sm text-slate-300 space-y-1">
