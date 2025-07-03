@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, Calendar, MessageSquare } from 'lucide-react';
@@ -18,6 +17,12 @@ export const QuickActions = () => {
   const { createTask } = useTasks();
   const { createAppointment } = useAppointments();
 
+  const handleAddLeadClick = () => {
+    console.log('Add Lead button clicked - reloading page immediately');
+    // Reload the page immediately when the button is clicked
+    window.location.reload();
+  };
+
   const handleAddLead = async (leadData: any) => {
     console.log('Submitting lead data from dashboard:', leadData);
     
@@ -29,12 +34,10 @@ export const QuickActions = () => {
         console.log('Lead created successfully from dashboard, closing modal');
         setShowAddLead(false);
         
-        // Wait a bit longer to ensure database changes are processed
-        console.log('Waiting for database sync before refresh...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        console.log('Refreshing page to show updated metrics');
-        window.location.reload();
+        // Additional reload after successful creation (backup)
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       }
       
       return success;
@@ -59,7 +62,7 @@ export const QuickActions = () => {
         <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Button 
-            onClick={() => setShowAddLead(true)}
+            onClick={handleAddLeadClick}
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
