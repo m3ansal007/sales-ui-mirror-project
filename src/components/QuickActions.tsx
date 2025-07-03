@@ -19,11 +19,17 @@ export const QuickActions = () => {
   const { createAppointment } = useAppointments();
 
   const handleAddLead = async (leadData: any) => {
+    console.log('Submitting lead data:', leadData);
     const success = await createLead(leadData);
+    console.log('Lead creation result:', success);
+    
     if (success) {
+      console.log('Lead created successfully, closing modal and refreshing page');
       setShowAddLead(false);
-      // Refresh the page after successfully adding a lead
-      window.location.reload();
+      // Add a small delay to ensure modal closes before refresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
     return success;
   };
