@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -190,10 +191,8 @@ const AllLeads = () => {
                       <Checkbox
                         checked={isAllSelected}
                         onCheckedChange={handleSelectAll}
-                        ref={(el) => {
-                          if (el) el.indeterminate = isIndeterminate;
-                        }}
                         className="border-slate-600"
+                        {...(isIndeterminate && { 'data-indeterminate': 'true' })}
                       />
                     </TableHead>
                     <TableHead className="text-slate-300">Name</TableHead>
