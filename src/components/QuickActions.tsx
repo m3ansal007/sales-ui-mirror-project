@@ -14,9 +14,19 @@ export const QuickActions = () => {
   const [showAddTask, setShowAddTask] = useState(false);
   const [showAddAppointment, setShowAddAppointment] = useState(false);
   
-  const { addLead } = useLeads();
-  const { addTask } = useTasks();
-  const { addAppointment } = useAppointments();
+  const { createLead } = useLeads();
+  const { createTask } = useTasks();
+  const { createAppointment } = useAppointments();
+
+  const handleAddLead = async (leadData: any) => {
+    const success = await createLead(leadData);
+    if (success) {
+      setShowAddLead(false);
+      // Refresh the page after successfully adding a lead
+      window.location.reload();
+    }
+    return success;
+  };
 
   return (
     <>
@@ -52,19 +62,19 @@ export const QuickActions = () => {
       <AddLeadModal
         isOpen={showAddLead}
         onClose={() => setShowAddLead(false)}
-        onSubmit={addLead}
+        onSubmit={handleAddLead}
       />
 
       <AddTaskModal
         isOpen={showAddTask}
         onClose={() => setShowAddTask(false)}
-        onSubmit={addTask}
+        onSubmit={createTask}
       />
 
       <AddAppointmentModal
         isOpen={showAddAppointment}
         onClose={() => setShowAddAppointment(false)}
-        onSubmit={addAppointment}
+        onSubmit={createAppointment}
       />
     </>
   );

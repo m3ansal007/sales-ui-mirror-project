@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,16 @@ const AllLeads = () => {
     if (confirm('Are you sure you want to delete this lead?')) {
       await deleteLead(id);
     }
+  };
+
+  const handleAddLead = async (leadData: any) => {
+    const success = await createLead(leadData);
+    if (success) {
+      setShowAddModal(false);
+      // Refresh the page after successfully adding a lead
+      window.location.reload();
+    }
+    return success;
   };
 
   const getStatusColor = (status: string) => {
@@ -174,7 +185,7 @@ const AllLeads = () => {
       <AddLeadModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSubmit={createLead}
+        onSubmit={handleAddLead}
       />
 
       <EditLeadModal
