@@ -17,12 +17,6 @@ export const QuickActions = () => {
   const { createTask } = useTasks();
   const { createAppointment } = useAppointments();
 
-  const handleAddLeadClick = () => {
-    console.log('Add Lead button clicked - reloading page immediately');
-    // Reload the page immediately when the button is clicked
-    window.location.reload();
-  };
-
   const handleAddLead = async (leadData: any) => {
     console.log('Submitting lead data from dashboard:', leadData);
     
@@ -31,13 +25,11 @@ export const QuickActions = () => {
       console.log('Lead creation result from dashboard:', success);
       
       if (success) {
-        console.log('Lead created successfully from dashboard, closing modal');
+        console.log('Lead created successfully, closing modal and reloading page');
         setShowAddLead(false);
         
-        // Additional reload after successful creation (backup)
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // Reload the page after successful lead creation
+        window.location.reload();
       }
       
       return success;
@@ -56,13 +48,41 @@ export const QuickActions = () => {
     }
   };
 
+  const quickActions = [
+    { label: "Add Lead", icon: Plus },
+    { label: "Follow-ups", icon: Calendar },
+    { label: "Search", icon: Users }
+  ];
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case "Add Lead":
+        // Just open the modal, don't reload immediately
+        setShowAddLead(true);
+        break;
+      case "Follow-ups":
+        window.location.href = '/tasks?filter=Due Today';
+        break;
+      case "Search":
+        // Focus on the search input
+        const searchInput = document.querySelector('input[placeholder*="Ask AI"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.placeholder = "Search leads, tasks, or ask AI...";
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <>
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-8">
         <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Button 
-            onClick={handleAddLeadClick}
+            onClick={() => handleQuickAction("Add Lead")}
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -48,7 +47,7 @@ const AllLeads = () => {
     const success = await createLead(leadData);
     if (success) {
       setShowAddModal(false);
-      // Refresh the page after successfully adding a lead
+      // Reload the page after successfully adding a lead
       window.location.reload();
     }
     return success;
