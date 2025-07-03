@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -124,11 +123,76 @@ export const useLeads = () => {
     };
   }, [user, toast]);
 
+  const checkForDuplicates = (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>, excludeId?: string) => {
+    const duplicates = [];
+    
+    // Check for duplicate email
+    if (leadData.email && leadData.email.trim()) {
+      const emailExists = leads.some(lead => 
+        lead.id !== excludeId && 
+        lead.email && 
+        lead.email.toLowerCase() === leadData.email!.toLowerCase()
+      );
+      if (emailExists) {
+        duplicates.push(`email "${leadData.email}"`);
+      }
+    }
+
+    // Check for duplicate phone
+    if (leadData.phone && leadData.phone.trim()) {
+      const phoneExists = leads.some(lead => 
+        lead.id !== excludeId && 
+        lead.phone === leadData.phone
+      );
+      if (phoneExists) {
+        duplicates.push(`phone number "${leadData.phone}"`);
+      }
+    }
+
+    // Check for duplicate name + email combination
+    if (leadData.name && leadData.email && leadData.email.trim()) {
+      const nameEmailExists = leads.some(lead => 
+        lead.id !== excludeId && 
+        lead.name.toLowerCase() === leadData.name.toLowerCase() && 
+        lead.email && 
+        lead.email.toLowerCase() === leadData.email!.toLowerCase()
+      );
+      if (nameEmailExists) {
+        duplicates.push(`name and email combination "${leadData.name}" + "${leadData.email}"`);
+      }
+    }
+
+    // Check for duplicate name + phone combination
+    if (leadData.name && leadData.phone && leadData.phone.trim()) {
+      const namePhoneExists = leads.some(lead => 
+        lead.id !== excludeId && 
+        lead.name.toLowerCase() === leadData.name.toLowerCase() && 
+        lead.phone === leadData.phone
+      );
+      if (namePhoneExists) {
+        duplicates.push(`name and phone combination "${leadData.name}" + "${leadData.phone}"`);
+      }
+    }
+
+    return duplicates;
+  };
+
   const createLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => {
     if (!user) {
       toast({
         title: "Error",
         description: "You must be logged in to create leads",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Check for duplicates before attempting to create
+    const duplicates = checkForDuplicates(leadData);
+    if (duplicates.length > 0) {
+      toast({
+        title: "Duplicate Lead Detected",
+        description: `A lead with the same ${duplicates.join(' or ')} already exists.`,
         variant: "destructive",
       });
       return false;
@@ -157,6 +221,17 @@ export const useLeads = () => {
 
       if (error) {
         console.error('Supabase error:', error);
+        
+        // Handle database constraint violations
+        if (error.message.includes('already exists')) {
+          toast({
+            title: "Duplicate Lead",
+            description: error.message,
+            variant: "destructive",
+          });
+          return false;
+        }
+        
         throw error;
       }
       
@@ -192,6 +267,17 @@ export const useLeads = () => {
   const updateLead = async (id: string, updates: Partial<Lead>) => {
     if (!user) return false;
 
+    // Check for duplicates before attempting to update (excluding current lead)
+    const duplicates = checkForDuplicates(updates as any, id);
+    if (duplicates.length > 0) {
+      toast({
+        title: "Duplicate Lead Detected",
+        description: `A lead with the same ${duplicates.join(' or ')} already exists.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
     try {
       const { data, error } = await supabase
         .from('leads')
@@ -200,7 +286,18 @@ export const useLeads = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle database constraint violations
+        if (error.message.includes('already exists')) {
+          toast({
+            title: "Duplicate Lead",
+            description: error.message,
+            variant: "destructive",
+          });
+          return false;
+        }
+        throw error;
+      }
       
       // Manual update for immediate UI response
       setLeads(prev => prev.map(lead => 

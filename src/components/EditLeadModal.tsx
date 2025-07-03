@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
     notes: '',
     value: '',
   });
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (lead) {
@@ -44,21 +44,71 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
         notes: lead.notes || '',
         value: lead.value?.toString() || '',
       });
+      setValidationErrors([]);
     }
   }, [lead]);
+
+  const validateForm = () => {
+    const errors: string[] = [];
+    
+    if (!formData.name.trim()) {
+      errors.push('Name is required');
+    }
+    
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        errors.push('Please enter a valid email address');
+      }
+    }
+    
+    if (formData.phone && formData.phone.trim()) {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (!phoneRegex.test(formData.phone.trim().replace(/[\s\-\(\)]/g, ''))) {
+        errors.push('Please enter a valid phone number');
+      }
+    }
+    
+    if (!formData.email?.trim() && !formData.phone?.trim()) {
+      errors.push('Either email or phone number is required');
+    }
+    
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lead) return;
 
+    if (!validateForm()) {
+      return;
+    }
+
     const updates = {
-      ...formData,
+      name: formData.name.trim(),
+      email: formData.email.trim() || undefined,
+      phone: formData.phone.trim() || undefined,
+      company: formData.company.trim() || undefined,
+      source: formData.source || undefined,
+      status: formData.status,
+      notes: formData.notes.trim() || undefined,
       value: formData.value ? parseFloat(formData.value) : undefined,
     };
 
     const success = await onUpdate(lead.id, updates);
     if (success) {
       onClose();
+      setValidationErrors([]);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear validation errors when user starts typing
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
     }
   };
 
@@ -69,6 +119,16 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
           <DialogTitle className="text-white">Edit Lead</DialogTitle>
         </DialogHeader>
         
+        {validationErrors.length > 0 && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <ul className="text-red-400 text-sm space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -76,7 +136,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => handleInputChange('name', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
                 required
               />
@@ -87,7 +147,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
               />
             </div>
@@ -99,7 +159,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
               />
             </div>
@@ -108,7 +168,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
               <Input
                 id="company"
                 value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                onChange={(e) => handleInputChange('company', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
               />
             </div>
@@ -117,7 +177,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="source" className="text-slate-300">Source</Label>
-              <Select value={formData.source} onValueChange={(value) => setFormData({ ...formData, source: value })}>
+              <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
@@ -133,7 +193,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
             </div>
             <div>
               <Label htmlFor="status" className="text-slate-300">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -153,7 +213,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
                 type="number"
                 step="0.01"
                 value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                onChange={(e) => handleInputChange('value', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
               />
             </div>
@@ -164,7 +224,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
             <Textarea
               id="notes"
               value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) => handleInputChange('notes', e.target.value)}
               className="bg-slate-800 border-slate-700 text-white"
               rows={3}
             />

@@ -1,4 +1,3 @@
-
 import { X, User, Mail, Phone, MapPin, Users, FileText } from "lucide-react";
 import { useState } from "react";
 import { Lead } from "@/hooks/useLeads";
@@ -21,12 +20,42 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
     value: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const validateForm = () => {
+    const errors: string[] = [];
+    
+    if (!formData.name.trim()) {
+      errors.push('Name is required');
+    }
+    
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        errors.push('Please enter a valid email address');
+      }
+    }
+    
+    if (formData.phone && formData.phone.trim()) {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (!phoneRegex.test(formData.phone.trim().replace(/[\s\-\(\)]/g, ''))) {
+        errors.push('Please enter a valid phone number');
+      }
+    }
+    
+    if (!formData.email?.trim() && !formData.phone?.trim()) {
+      errors.push('Either email or phone number is required');
+    }
+    
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!formData.name.trim()) {
+    if (!validateForm()) {
       return;
     }
 
@@ -58,6 +87,7 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
           notes: '',
           value: ''
         });
+        setValidationErrors([]);
       }
     } catch (error) {
       console.error('Error submitting lead:', error);
@@ -72,6 +102,11 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
       ...prev,
       [name]: value
     }));
+    
+    // Clear validation errors when user starts typing
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
+    }
   };
 
   if (!isOpen) return null;
@@ -89,6 +124,16 @@ export const AddLeadModal = ({ isOpen, onClose, onSubmit }: AddLeadModalProps) =
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {validationErrors.length > 0 && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <ul className="text-red-400 text-sm space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
