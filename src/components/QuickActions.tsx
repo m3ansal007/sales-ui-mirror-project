@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, Calendar, MessageSquare } from 'lucide-react';
@@ -19,16 +20,28 @@ export const QuickActions = () => {
 
   const handleAddLead = async (leadData: any) => {
     console.log('Submitting lead data from dashboard:', leadData);
-    const success = await createLead(leadData);
-    console.log('Lead creation result from dashboard:', success);
     
-    if (success) {
-      console.log('Lead created successfully from dashboard, closing modal and reloading page');
-      setShowAddLead(false);
-      // Force page reload to show updated metrics immediately
-      window.location.reload();
+    try {
+      const success = await createLead(leadData);
+      console.log('Lead creation result from dashboard:', success);
+      
+      if (success) {
+        console.log('Lead created successfully from dashboard, closing modal');
+        setShowAddLead(false);
+        
+        // Wait a bit longer to ensure database changes are processed
+        console.log('Waiting for database sync before refresh...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log('Refreshing page to show updated metrics');
+        window.location.reload();
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Error in handleAddLead:', error);
+      return false;
     }
-    return success;
   };
 
   const handleAddAppointment = async (appointmentData: any) => {
