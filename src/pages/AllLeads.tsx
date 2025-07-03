@@ -3,9 +3,10 @@ import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Edit, Trash2, Mail, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, Upload } from 'lucide-react';
 import { AddLeadModal } from '@/components/AddLeadModal';
 import { EditLeadModal } from '@/components/EditLeadModal';
+import { ImportLeadsModal } from '@/components/ImportLeadsModal';
 import { useLeads } from '@/hooks/useLeads';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +15,7 @@ const AllLeads = () => {
   const { leads, loading, createLead, updateLead, deleteLead } = useLeads();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
@@ -51,6 +53,41 @@ const AllLeads = () => {
       window.location.reload();
     }
     return success;
+  };
+
+  const handleImportLeads = async (importedLeads: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const leadData of importedLeads) {
+      try {
+        const success = await createLead(leadData);
+        if (success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (error) {
+        errorCount++;
+        console.error('Error importing lead:', leadData.name, error);
+      }
+    }
+
+    if (successCount > 0) {
+      toast({
+        title: "Import Successful",
+        description: `${successCount} leads imported successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+      });
+      
+      // Reload page to show updated leads
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+
+    if (errorCount > 0 && successCount === 0) {
+      throw new Error(`Failed to import ${errorCount} leads`);
+    }
   };
 
   const handleSelectLead = (leadId: string, checked: boolean) => {
@@ -168,6 +205,14 @@ const AllLeads = () => {
                   Delete Selected ({selectedLeads.length})
                 </Button>
               )}
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV/Excel
+              </Button>
               <Button
                 onClick={() => setShowAddModal(true)}
                 className="bg-blue-600 hover:bg-blue-700"
@@ -319,6 +364,12 @@ const AllLeads = () => {
         onClose={() => setShowEditModal(false)}
         lead={selectedLead}
         onUpdate={updateLead}
+      />
+
+      <ImportLeadsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImportLeads}
       />
     </div>
   );
