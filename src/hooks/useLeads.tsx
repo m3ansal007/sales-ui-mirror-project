@@ -138,11 +138,19 @@ export const useLeads = () => {
       }
     }
 
-    // Check for duplicate phone
+    // Check for duplicate phone - now with more flexible matching
     if (leadData.phone && leadData.phone.trim()) {
+      // Normalize phone numbers by removing common formatting characters
+      const normalizePhone = (phone: string) => {
+        return phone.replace(/[\s\-\(\)\.\+]/g, '');
+      };
+      
+      const normalizedInputPhone = normalizePhone(leadData.phone.trim());
+      
       const phoneExists = leads.some(lead => 
         lead.id !== excludeId && 
-        lead.phone === leadData.phone
+        lead.phone && 
+        normalizePhone(lead.phone) === normalizedInputPhone
       );
       if (phoneExists) {
         duplicates.push(`phone number "${leadData.phone}"`);
@@ -164,10 +172,17 @@ export const useLeads = () => {
 
     // Check for duplicate name + phone combination
     if (leadData.name && leadData.phone && leadData.phone.trim()) {
+      const normalizePhone = (phone: string) => {
+        return phone.replace(/[\s\-\(\)\.\+]/g, '');
+      };
+      
+      const normalizedInputPhone = normalizePhone(leadData.phone.trim());
+      
       const namePhoneExists = leads.some(lead => 
         lead.id !== excludeId && 
         lead.name.toLowerCase() === leadData.name.toLowerCase() && 
-        lead.phone === leadData.phone
+        lead.phone && 
+        normalizePhone(lead.phone) === normalizedInputPhone
       );
       if (namePhoneExists) {
         duplicates.push(`name and phone combination "${leadData.name}" + "${leadData.phone}"`);

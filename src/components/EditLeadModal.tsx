@@ -62,9 +62,10 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
       }
     }
     
+    // Removed strict phone validation - now accepts any non-empty string
     if (formData.phone && formData.phone.trim()) {
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      if (!phoneRegex.test(formData.phone.trim().replace(/[\s\-\(\)]/g, ''))) {
+      // Just check that it's not empty after trimming
+      if (formData.phone.trim().length === 0) {
         errors.push('Please enter a valid phone number');
       }
     }
@@ -161,7 +162,11 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white"
+                placeholder="Any format accepted"
               />
+              <p className="text-xs text-slate-500 mt-1">
+                Accepts any format: +1-555-123-4567, (555) 123-4567, 555.123.4567, etc.
+              </p>
             </div>
             <div>
               <Label htmlFor="company" className="text-slate-300">Company</Label>
