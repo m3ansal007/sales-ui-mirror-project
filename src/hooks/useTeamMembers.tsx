@@ -70,9 +70,15 @@ export const useTeamMembers = () => {
 
     fetchTeamMembers();
 
-    // Subscribe to real-time changes on leads to update performance
+    // Subscribe to real-time changes on leads to update performance with improved error handling
     const leadsChannel = supabase
-      .channel('team-performance-leads')
+      .channel(`team-performance-leads-${user.id}`, {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -82,16 +88,34 @@ export const useTeamMembers = () => {
         },
         (payload) => {
           console.log('Lead change detected for team performance:', payload);
-          // Refetch team members and performance data when leads change
+          // Debounce refetch to avoid multiple rapid calls
           setTimeout(() => {
             fetchTeamMembers();
-          }, 100);
+          }, 500);
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Team performance subscription: Successfully connected');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn('Team performance subscription: Channel error, will retry automatically');
+        } else if (status === 'TIMED_OUT') {
+          console.warn('Team performance subscription: Timed out, will retry');
+        } else if (status === 'CLOSED') {
+          console.log('Team performance subscription: Connection closed');
+        }
+        
+        if (err) {
+          console.error('Team performance subscription error:', err);
+        }
+      });
 
     return () => {
-      supabase.removeChannel(leadsChannel);
+      try {
+        supabase.removeChannel(leadsChannel);
+      } catch (error) {
+        console.warn('Error removing team performance channel:', error);
+      }
     };
   }, [user]);
 

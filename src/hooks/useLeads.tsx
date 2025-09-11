@@ -55,9 +55,15 @@ export const useLeads = () => {
     console.log('Setting up leads real-time subscription...');
     fetchLeads();
 
-    // Subscribe to real-time changes
+    // Subscribe to real-time changes with improved error handling
     const leadsChannel = supabase
-      .channel('leads-changes')
+      .channel(`leads-changes-${user.id}`, {
+        config: {
+          presence: {
+            key: user.id,
+          },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -113,13 +119,30 @@ export const useLeads = () => {
           setLeads(prev => prev.filter(lead => lead.id !== payload.old.id));
         }
       )
-      .subscribe((status) => {
-        console.log('Leads subscription status:', status);
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Leads subscription: Successfully connected');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn('Leads subscription: Channel error, will retry automatically');
+          // Don't spam the console with repeated errors
+        } else if (status === 'TIMED_OUT') {
+          console.warn('Leads subscription: Timed out, will retry');
+        } else if (status === 'CLOSED') {
+          console.log('Leads subscription: Connection closed');
+        }
+        
+        if (err) {
+          console.error('Leads subscription error:', err);
+        }
       });
 
     return () => {
       console.log('Cleaning up leads subscription...');
-      supabase.removeChannel(leadsChannel);
+      try {
+        supabase.removeChannel(leadsChannel);
+      } catch (error) {
+        console.warn('Error removing leads channel:', error);
+      }
     };
   }, [user, toast]);
 
