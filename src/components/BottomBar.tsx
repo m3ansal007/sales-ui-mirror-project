@@ -61,12 +61,18 @@ export const BottomBar = () => {
 
       // Handle lead creation if requested
       if (response.leadAction) {
+        console.log('AI wants to create lead:', response.leadAction);
+        
         const leadData = {
           ...response.leadAction.leadData,
           status: response.leadAction.leadData.status || 'New'
         };
         
+        console.log('Processed lead data:', leadData);
+        
         const success = await createLead(leadData);
+        console.log('Lead creation result:', success);
+        
         if (success) {
           toast({
             title: "Lead Created Successfully",
@@ -77,6 +83,13 @@ export const BottomBar = () => {
           setTimeout(() => {
             window.location.reload();
           }, 1000);
+        } else {
+          console.error('Failed to create lead through AI');
+          toast({
+            title: "Lead Creation Failed",
+            description: "Unable to create the lead. Please try manually.",
+            variant: "destructive",
+          });
         }
       }
 

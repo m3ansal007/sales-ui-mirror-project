@@ -55,6 +55,8 @@ export const sendChatMessage = async (
       throw new Error(data.error);
     }
 
+    console.log('Chat response data:', data);
+
     return { 
       message: data.message || 'No response received',
       colorAction: data.colorAction,

@@ -118,9 +118,11 @@ serve(async (req) => {
 
     // Check if this is a color change request
     const colorRequest = parseColorRequest(message);
+    console.log('Color request result:', colorRequest);
     
     // Check if this is a lead creation request
     const leadRequest = parseLeadRequest(message);
+    console.log('Lead request result:', leadRequest);
 
     const messages: ChatMessage[] = [
       {
@@ -181,12 +183,16 @@ When creating leads, acknowledge the action and confirm what information was cap
     // If this was a color change request, include the color action
     if (colorRequest) {
       responseData.colorAction = colorRequest;
+      console.log('Including color action in response');
     }
     
     // If this was a lead creation request, include the lead action
     if (leadRequest) {
       responseData.leadAction = leadRequest;
+      console.log('Including lead action in response:', leadRequest);
     }
+
+    console.log('Final response data:', responseData);
 
     return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
