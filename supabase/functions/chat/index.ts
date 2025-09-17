@@ -53,6 +53,54 @@ const parseColorRequest = (message: string) => {
   return null;
 };
 
+const parseLeadRequest = (message: string) => {
+  const leadKeywords = ['add lead', 'create lead', 'new lead', 'add contact', 'create contact'];
+  const hasLeadKeyword = leadKeywords.some(keyword => 
+    message.toLowerCase().includes(keyword.toLowerCase())
+  );
+
+  if (!hasLeadKeyword) return null;
+
+  // Extract lead information using simple patterns
+  const extractField = (pattern: RegExp) => {
+    const match = message.match(pattern);
+    return match ? match[1].trim() : undefined;
+  };
+
+  // Extract email using regex
+  const emailMatch = message.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+  
+  // Extract phone using regex (various formats)
+  const phoneMatch = message.match(/(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/);
+  
+  // Extract name (look for patterns like "name: John Doe" or "add lead John Doe")
+  const namePattern = /(?:name[:\s]+|lead[:\s]+|contact[:\s]+)([A-Za-z\s]+?)(?:\s|$|email|phone|company)/i;
+  const nameMatch = message.match(namePattern);
+  
+  // Extract company
+  const companyPattern = /(?:company[:\s]+|at[:\s]+)([A-Za-z0-9\s&.,-]+?)(?:\s|$|email|phone|name)/i;
+  const companyMatch = message.match(companyPattern);
+
+  // If we can extract at least a name, create the lead data
+  const name = nameMatch ? nameMatch[1].trim() : undefined;
+  
+  if (name && name.length > 0) {
+    return {
+      action: 'create_lead',
+      leadData: {
+        name,
+        email: emailMatch ? emailMatch[0] : undefined,
+        phone: phoneMatch ? phoneMatch[0] : undefined,
+        company: companyMatch ? companyMatch[1].trim() : undefined,
+        source: 'AI Chat',
+        status: 'New'
+      }
+    };
+  }
+
+  return null;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -70,18 +118,29 @@ serve(async (req) => {
 
     // Check if this is a color change request
     const colorRequest = parseColorRequest(message);
+    
+    // Check if this is a lead creation request
+    const leadRequest = parseLeadRequest(message);
 
     const messages: ChatMessage[] = [
       {
         role: 'system',
         content: `You are a helpful AI assistant for a sales management dashboard. Help users with sales insights, data analysis, and management tasks. Be concise and actionable in your responses.
 
-IMPORTANT: You can change the UI colors when users ask. If someone asks to change colors, acknowledge their request and explain that you're updating the colors. Supported colors include: red, blue, green, purple, yellow, orange, pink, indigo, teal, cyan, lime, emerald, violet, fuchsia, rose, amber.
+IMPORTANT CAPABILITIES:
+1. You can change the UI colors when users ask. Supported colors include: red, blue, green, purple, yellow, orange, pink, indigo, teal, cyan, lime, emerald, violet, fuchsia, rose, amber.
+2. You can add leads to the system when users provide lead information.
 
-Examples:
+COLOR EXAMPLES:
 - "change to blue" or "make it blue" - changes primary color to blue
 - "change colors to red" - changes primary color to red
-- "update the theme to purple" - changes primary color to purple`
+
+LEAD CREATION EXAMPLES:
+- "add lead John Doe email john@example.com phone 555-1234 company ABC Corp" - creates a new lead
+- "create contact Sarah Smith at Google with email sarah@google.com" - creates a new lead
+- "new lead Mike Johnson phone 555-9876" - creates a lead with available info
+
+When creating leads, acknowledge the action and confirm what information was captured.`
       },
       ...conversationHistory,
       {
@@ -122,6 +181,11 @@ Examples:
     // If this was a color change request, include the color action
     if (colorRequest) {
       responseData.colorAction = colorRequest;
+    }
+    
+    // If this was a lead creation request, include the lead action
+    if (leadRequest) {
+      responseData.leadAction = leadRequest;
     }
 
     return new Response(JSON.stringify(responseData), {

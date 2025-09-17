@@ -15,6 +15,19 @@ export interface ChatResponse {
       accent?: string;
     };
   };
+  leadAction?: {
+    action: 'create_lead';
+    leadData: {
+      name: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      source?: string;
+      status?: string;
+      notes?: string;
+      value?: number;
+    };
+  };
 }
 
 export const sendChatMessage = async (
@@ -44,7 +57,8 @@ export const sendChatMessage = async (
 
     return { 
       message: data.message || 'No response received',
-      colorAction: data.colorAction
+      colorAction: data.colorAction,
+      leadAction: data.leadAction
     };
   } catch (error) {
     console.error('Chat Service Error:', error);

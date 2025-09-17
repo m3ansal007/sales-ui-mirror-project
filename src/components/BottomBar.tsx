@@ -7,6 +7,7 @@ import { useColors } from "@/contexts/ColorContext";
 import { VoiceRecorder } from "@/utils/voiceRecorder";
 import { convertSpeechToText } from "@/services/speechService";
 import { useNavigate } from "react-router-dom";
+import { useLeads } from "@/hooks/useLeads";
 
 export const BottomBar = () => {
   const [input, setInput] = useState("");
@@ -17,6 +18,7 @@ export const BottomBar = () => {
   const { updateColors } = useColors();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { createLead } = useLeads();
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -55,6 +57,27 @@ export const BottomBar = () => {
           title: "Colors Updated",
           description: "The UI colors have been changed as requested!",
         });
+      }
+
+      // Handle lead creation if requested
+      if (response.leadAction) {
+        const leadData = {
+          ...response.leadAction.leadData,
+          status: response.leadAction.leadData.status || 'New'
+        };
+        
+        const success = await createLead(leadData);
+        if (success) {
+          toast({
+            title: "Lead Created Successfully",
+            description: `Added ${leadData.name} to your leads!`,
+          });
+          
+          // Trigger page refresh to show updated lead count
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
       }
 
       // Add assistant response to chat
