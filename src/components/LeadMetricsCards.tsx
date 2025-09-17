@@ -3,11 +3,13 @@ import { Users, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useLeads";
 import { useMemo, useEffect, useState, useRef } from "react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 export const LeadMetricsCards = () => {
   const navigate = useNavigate();
   const { leads } = useLeads();
   const [animateCount, setAnimateCount] = useState(false);
+  const [metricsOrder, setMetricsOrder] = useState<number[]>([0, 1, 2, 3, 4]);
   const previousCountRef = useRef(0);
 
   // Trigger animation when leads count changes
@@ -101,34 +103,69 @@ export const LeadMetricsCards = () => {
     ];
   }, [leads, navigate, animateCount]);
 
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const newOrder = Array.from(metricsOrder);
+    const [reorderedItem] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, reorderedItem);
+
+    setMetricsOrder(newOrder);
+  };
+
+  const orderedMetrics = metricsOrder.map(index => metrics[index]);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-      {metrics.map((metric, index) => (
-        <div
-          key={index}
-          onClick={metric.onClick}
-          className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
-            metric.animate ? 'animate-pulse scale-105' : ''
-          }`}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color} transition-all duration-300 ${
-              metric.animate ? 'scale-110 shadow-lg' : ''
-            }`}>
-              <metric.icon className="w-5 h-5 text-white" />
-            </div>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="metrics" direction="horizontal">
+        {(provided) => (
+          <div
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
+          >
+            {orderedMetrics.map((metric, index) => (
+              <Draggable key={`metric-${metricsOrder[index]}`} draggableId={`metric-${metricsOrder[index]}`} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    onClick={!snapshot.isDragging ? metric.onClick : undefined}
+                    className={`${metric.bgColor} ${metric.borderColor} border rounded-xl p-6 transition-all duration-300 hover:scale-105 cursor-pointer group ${
+                      metric.animate ? 'animate-pulse scale-105' : ''
+                    } ${snapshot.isDragging ? 'rotate-2 scale-105 shadow-2xl z-50' : ''}`}
+                    style={{
+                      ...provided.draggableProps.style,
+                      transform: snapshot.isDragging 
+                        ? `${provided.draggableProps.style?.transform} rotate(2deg)` 
+                        : provided.draggableProps.style?.transform
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color} transition-all duration-300 ${
+                        metric.animate ? 'scale-110 shadow-lg' : ''
+                      }`}>
+                        <metric.icon className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm mb-1">{metric.title}</p>
+                      <p className={`text-white text-2xl font-bold mb-1 transition-all duration-300 ${
+                        metric.animate ? 'scale-110 text-blue-400' : ''
+                      }`}>
+                        {metric.value}
+                      </p>
+                      <p className="text-slate-500 text-xs">{metric.change}</p>
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
           </div>
-          <div>
-            <p className="text-slate-400 text-sm mb-1">{metric.title}</p>
-            <p className={`text-white text-2xl font-bold mb-1 transition-all duration-300 ${
-              metric.animate ? 'scale-110 text-blue-400' : ''
-            }`}>
-              {metric.value}
-            </p>
-            <p className="text-slate-500 text-xs">{metric.change}</p>
-          </div>
-        </div>
-      ))}
-    </div>
+        )}
+      </Droppable>
+    </DragDropContext>
   );
 };
